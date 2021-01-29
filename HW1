@@ -1,0 +1,16 @@
+library(ISLR)
+data(College)
+college <- read.csv("College.csv", header=T)
+
+head(college[, 1:5])
+
+rownames <-college[,1]
+college <- college[,-1]
+fix(college)
+
+summary(college)
+pairs(college[, 1:10])
+
+plot(college$Private, college$Outstate, 
+     xlab = "Private University", ylab ="Out of State tuition in USD", 
+     main = "Outstate Tuition Plot")
