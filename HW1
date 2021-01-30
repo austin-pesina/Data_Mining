@@ -14,3 +14,9 @@ pairs(college[, 1:10])
 plot(college$Private, college$Outstate, 
      xlab = "Private University", ylab ="Out of State tuition in USD", 
      main = "Outstate Tuition Plot")
+
+#i made a change
+
+system("git config --global user.email \"apesina1991@gmail.com"")
+system("git config --global user.name \"austin-pesina\"")
+system("git config --list")
