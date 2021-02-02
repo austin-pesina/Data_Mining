@@ -12,13 +12,21 @@ fix(college)
 summary(college)
 pairs(college[, 1:10])
 
-boxplot(college$Outstate ~ college$Private, main = "Outstate",  xlab = "Private", ylab = "Outstate vs Private")
+boxplot(college$Outstate ~ college$Private, main = "Outstate vs Private",  xlab = "Private", ylab = "Outstate")
 
 Elite <-rep("No", nrow(college))
-Elite [college$Top10perc >50] <- "Yes"
+Elite [college$Top10perc >50] = "Yes"
 Elite <-as.factor(Elite)
 college <- data.frame(college, Elite)
 fix(college)
 summary(college$Elite)
 
-boxplot(college$Elite, college$Outstate, xlab="Elite University", ylab="Out of State Tuition in USD", main="Outstate vs Elite")
+boxplot(college$Outstate ~ college$Elite, xlab="Elite University", ylab="Out of State Tuition in USD", main="Outstate vs Elite")
+
+par(mfrow = c(2,2))
+hist(college$Books, col = 2, xlab = "Books", ylab = "Count")
+hist(college$PhD, col = 3, xlab = "PhD", ylab = "Count")
+hist(college$Grad.Rate, col = 4, xlab = "Grad Rate", ylab = "Count")
+hist(college$perc.alumni, col = 6, xlab = "% alumni", ylab = "Count")
+
+summary(college$PhD)
