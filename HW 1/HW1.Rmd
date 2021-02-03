@@ -104,9 +104,20 @@ auto$year <-as.factor(auto$year)
 auto$origin <-as.factor(auto$origin)
 pairs(auto[-9])
 
+auto$horsepower <- as.numeric(auto$horsepower)
+cor(auto$weight, auto$horsepower)
+cor(auto$weight, auto$displacement)
+cor(auto$weight, auto$horsepower)
 
 ```
 a) All variables except "name" are quantitative.
+e) We get better mpg on a 4 cyl vehicle compared to others. There are positive correlations between displacement/horsepower and displacement/weight as well as horsepower/weight. Also, as years have gone by, we see mpg increasing.
+f) Cylinder, horsepower, and year can be used as predictors. Displacement and weight are not used because they are correlated with horsepower rather than each other.
 
+## #10
+```{r #10}
+
+
+```
 
 
