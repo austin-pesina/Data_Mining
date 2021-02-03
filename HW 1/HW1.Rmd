@@ -1,0 +1,81 @@
+---
+title: "HW 1"
+author: "Austin Pesina"
+date: "2/2/2021"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## #2
+
+a) This is a regression problem because all the variables have numerical values. This is also an inference problem because we are looking at the relationship between the variables and the CEO’s salary. n = top 500 U.S. firms; p = 3
+b) classification; prediction; n = 20; p = 3
+c) regression; prediction; n = 52 p=3
+
+
+
+## #5
+
+A flexible approach can give a better fit for non-linear models and reduces the bias. On the other hand, it requires a greater number of parameters, it overfits the model, and there is an increase in variance.
+
+A more flexible approach is preferred when we want a prediction while a less flexible approach is preferred when we want an inference and interpretability.
+
+
+## #6
+
+A parametric approach reduces the problem of estimating f down to one of estimating a set of parameters because it assumes a form for f. 
+
+A non-parametric approach does not assume a particular form of f and requires a large sample to accurately estimate f.
+
+The advantages of a parametric approach over a non-parametric one is that it simplifies the modeling of f down to fewer parameters so not as many observations are needed. The disadvantages are that there is a potentially inaccurate estimate of f if the form of f is wrong; it could also overfit the observations if a more flexible model is used.
+
+
+## #8
+```{r #8, echo=TRUE}
+library(ISLR)
+data(College)
+college <- read.csv("~/Data_Mining/Data/College.csv", header=T)
+
+head(college[, 1:5])
+
+rownames <- college[,1]
+fix(college)
+college <- college[,-1]
+fix(college)
+
+college$Private<-as.factor(college$Private)
+
+summary(college)
+
+pairs(college[, 1:10])
+
+plot(college$Private, college$Outstate, xlab = "Private University",
+     ylab ="Out of State tuition in USD", main = "Outstate Tuition Plot")
+
+Elite <-rep("No", nrow(college))
+Elite [college$Top10perc >50] = "Yes"
+Elite <-as.factor(Elite)
+college <- data.frame(college, Elite)
+fix(college)
+summary(college$Elite)
+
+plot(college$Elite, college$Outstate, xlab = "Elite University",
+     ylab ="Out of State tuition in USD", main = "Outstate Tuition Plot")
+
+par(mfrow = c(2,2))
+hist(college$Books, col = 2, xlab = "Books", ylab = "Count")
+hist(college$PhD, col = 3, xlab = "PhD", ylab = "Count")
+hist(college$Grad.Rate, col = 4, xlab = "Grad Rate", ylab = "Count")
+hist(college$perc.alumni, col = 6, xlab = "% alumni", ylab = "Count")
+
+summary(college$PhD)
+
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

@@ -15,7 +15,8 @@ summary(college)
 
 pairs(college[, 1:10])
 
-boxplot(college$Outstate ~ college$Private, main = "Outstate vs Private",  xlab = "Private", ylab = "Outstate")
+plot(college$Private, college$Outstate, xlab = "Private University",
+     ylab ="Out of State tuition in USD", main = "Outstate Tuition Plot")
 
 Elite <-rep("No", nrow(college))
 Elite [college$Top10perc >50] = "Yes"
@@ -24,7 +25,8 @@ college <- data.frame(college, Elite)
 fix(college)
 summary(college$Elite)
 
-boxplot(college$Outstate ~ college$Elite, xlab="Elite University", ylab="Out of State Tuition in USD", main="Outstate vs Elite")
+plot(college$Elite, college$Outstate, xlab = "Elite University",
+     ylab ="Out of State tuition in USD", main = "Outstate Tuition Plot")
 
 par(mfrow = c(2,2))
 hist(college$Books, col = 2, xlab = "Books", ylab = "Count")
