@@ -78,4 +78,35 @@ summary(college$PhD)
 
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+## #9
+```{r #9, echo=TRUE}
+library(ISLR)
+data(Auto)
+auto <-read.csv("~/Data_Mining/Data/Auto.csv", header=T, na.strings="?")
+fix(auto)
+
+str(auto)
+
+quant <- sapply(Auto, is.numeric)
+quant
+sapply(auto[quant], range)
+
+sapply(auto[quant], mean)
+sapply(auto[quant], sd)
+
+sub <-auto[-c(10:85), -c(4,9)]
+sapply(sub, range)
+sapply(sub, mean)
+sapply(sub, sd)
+
+auto$cylinders <-as.factor(auto$cylinders)
+auto$year <-as.factor(auto$year)
+auto$origin <-as.factor(auto$origin)
+pairs(auto[-9])
+
+
+```
+a) All variables except "name" are quantitative.
+
+
+
