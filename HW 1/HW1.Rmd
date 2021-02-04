@@ -1,7 +1,7 @@
 ---
 title: "HW 1"
 author: "Austin Pesina"
-date: "2/2/2021"
+date: "`r Sys.Date()`"
 output:
   pdf_document: default
   html_document:
@@ -104,20 +104,48 @@ auto$year <-as.factor(auto$year)
 auto$origin <-as.factor(auto$origin)
 pairs(auto[-9])
 
-auto$horsepower <- as.numeric(auto$horsepower)
-cor(auto$weight, auto$horsepower)
-cor(auto$weight, auto$displacement)
-cor(auto$weight, auto$horsepower)
+pairs(~ mpg + horsepower + weight + displacement, data = auto, panel = panel.smooth)
+
+plot(factor(Auto$origin), Auto$mpg, names=(c("American", "European", "Japanese")))
 
 ```
 a) All variables except "name" are quantitative.
 e) We get better mpg on a 4 cyl vehicle compared to others. There are positive correlations between displacement/horsepower and displacement/weight as well as horsepower/weight. Also, as years have gone by, we see mpg increasing.
-f) Cylinder, horsepower, and year can be used as predictors. Displacement and weight are not used because they are correlated with horsepower rather than each other.
+f) Cylinder, horsepower, displacement, weight origin, and year can be used as predictors. 
 
 ## #10
 ```{r #10}
+library(MASS)
+data(Boston)
+dim(Boston)
 
+pairs(Boston, panel = panel.smooth)
+hist(Boston$crim)
+pairs(Boston[Boston$crim <20,])
+pairs(~ crim + lstat + black, data = Boston, panel = panel.smooth)
 
+par(mfrow=c(2,2))
+hist(Boston$crim, main="Crime Rates")
+hist(Boston$crim, main="Crime Rates",  ylim=c(0, 40))
+hist(Boston$tax, main="Tax rates")
+hist(Boston$ptratio, main="Pupil-teacher ratio")
+
+summary(Boston$chas==1)
+
+median(Boston$ptratio)
+
+which.min(Boston$medv)
+par(mfrow=c(5,3), mar=c(2, 2, 1, 0))
+for (i in 1:ncol(Boston)){
+  hist(Boston[, i], main=colnames(Boston)[i], breaks="FD")
+  abline(v=Boston[399, i], col="red", lw=3)
+}
+
+summary(Boston$rm >7)
+summary(Boston$rm >8)
 ```
-
-
+a) Boston has 506 rows and 14 columns.
+c) There may be a relationship between crime and (nox, rm, age, dis, lstat, and medv).
+e) 35 subarbs bound the Charles River.
+g) #399 has the lowest median value.
+h) 64 have more than 7 rooms. 13 have more than 8
