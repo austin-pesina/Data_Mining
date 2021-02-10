@@ -1,0 +1,46 @@
+---
+title: "HW 2"
+author: "Austin Pesina"
+date: "2/10/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=F)
+```
+
+## Problem 10.
+This question should be answered using the [Carseats](https://rdrr.io/cran/ISLR/man/Carseats.html) data set.
+
+```{r getdata}
+library(ISLR)
+attach(Carseats)
+```
+**(a) Fit a multiple regression model to predict Sales using Price,Urban,and US.**  
+```{r}
+fit<-lm(Sales~Price+Urban+US)
+summary(fit)
+```
+
+**(b) Provide an interpretation of each coefficient in the model. Becareful—some of the variables in the model are qualitative!**  
+From the table above, `Price` and `US` are significant predictors of `Sales,` for every \$1 increase in my price, sales decrease by \$54. Sales inside the US are \$1,200 higher than sales outside of the US. Urban has no effect on Sales.
+
+**(c) Write out the model in equation form, being careful to handlethe qualitative variables properly.**  $Sales=13.043469  - 0.054459Price -  0.021916Urban_{Yes} +  1.200573US_{YES}     $
+
+**(d) For which of the predictors can you reject the null hypothesis $H0:β_{j}=0$?**  
+`Price` and `US`
+
+**(e) On the basis of your response to the previous question, fit a smaller model that only uses the predictors for which there isevidence of association with the outcome.**  
+```{r}
+fit<-lm(Sales~Price+Urban+US)
+summary(fit)
+```
+
+**(f) How well do the models in (a) and (e) fit the data?**  
+Models do not fit well. Each model explains around 23% of the variance in Sales.
+
+**(g) Using the model from (e), obtain 95 % confidence intervals for the coefficient(s).**  
+```{r}
+confint(fit)
+```
+**(h) Is there evidence of outliers or high leverage observations in the model from (e)?**  
