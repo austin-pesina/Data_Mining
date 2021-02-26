@@ -24,11 +24,24 @@ library (ISLR)
 attach (Auto)
 ```
 **(a) Produce a scatterplot matrix which includes all of the variables in the data set.**
+``` {r 9-a}
+pairs(Auto)
+```
 
-**(b) Compute the matrix of correlations between the variables using the function `cor()`. You will need to exclude the `name` variable, which is qualitative.**
+**(b) Compute the matrix of correlations between the variables using the function `cor()`. You will need to exclude the `name` variable, which is qualitative.**  
+
+``` {r 9-b}
+names (Auto)
+
+cor(Auto[1:8])
+```
 
 **(c) Use the `lm()` function to perform a multiple linear regression with `mpg` as the response and all other variables except `name` as the predictors. Use the `summary()` function to print the results. Comment on the output. For instance  **
 **i. Is there a relationship between the predictors and the response?**  
+```{r 9_c_i}
+fit9_c <-lm(mpg ~ . - name, data = Auto)
+summary(fit9_c)
+```  
 **ii. Which predictors appear to have a statistically significant relationship to the response?**  
 **iii. What does the coefficient for the `year` variable suggest?**  
 
