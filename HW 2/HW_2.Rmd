@@ -9,6 +9,36 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=F)
 ```
 
+## Problem 2.
+
+**Carefully explain the differences between the KNN classifier and KNN regression methods.**  
+Given a value for K and a prediction point x~0~, KNN regression first identifies the K training observations closest to x~0~. It estimates f(x~0~) by averaging all of the training responses closes to x~0~. This output is typically a continuous, numerical value.  
+
+The KNN classifier first identifies the K points in the training data closest to x~0~. This output will be given a label for a categorical value.  
+
+## Problem 9.
+This question involves the use of multiple linear regression on the [Auto](https://rdrr.io/cran/ISLR/man/Auto.html) data set.  
+
+```{r attachdata}
+library (ISLR)
+attach (Auto)
+```
+**(a) Produce a scatterplot matrix which includes all of the variables in the data set.**
+
+**(b) Compute the matrix of correlations between the variables using the function `cor()`. You will need to exclude the `name` variable, which is qualitative.**
+
+**(c) Use the `lm()` function to perform a multiple linear regression with `mpg` as the response and all other variables except `name` as the predictors. Use the `summary()` function to print the results. Comment on the output. For instance  **
+**i. Is there a relationship between the predictors and the response?**  
+**ii. Which predictors appear to have a statistically significant relationship to the response?**  
+**iii. What does the coefficient for the `year` variable suggest?**  
+
+**(d) Use the `plot()` function to produce diagnostic plots of the linear regression fit. Comment on any problems you see with the fit. Do the residual plot suggest any unusually large outliers? Does the leverage plot identify any observations with unusually high leverage?**  
+
+**(e) Use the * and : symbols to fit linear regression models with interaction effects. Do any interactions appear to be statistically significant?**  
+
+**(f) Try a few different transformations of the variables, such as log(x), \[\sqrt{x}\], \[x^{2}\]. Comment on your findings.  **
+
+
 ## Problem 10.
 This question should be answered using the [Carseats](https://rdrr.io/cran/ISLR/man/Carseats.html) data set.
 
@@ -44,3 +74,13 @@ Models do not fit well. Each model explains around 23% of the variance in Sales.
 confint(fit)
 ```
 **(h) Is there evidence of outliers or high leverage observations in the model from (e)?**  
+
+
+## Problem 12
+This problem involves simple linear regression without an intercept.  
+
+**(a) Recall that the coefficient estimate \hat{β} for the linear regression of Y onto X without an intercept is give by (3.38). Under what circumstance is the coefficient estimate for the regression of X onto Y the same as the  estimate for the regression of Y onto X. **  
+
+**(b) Generate an example in `R` with n = 100 observations in which the coefficient estimate for the regression of X onto Y is different from the coefficient estimate for the regression of Y onto X.**  
+
+**(c) Generate an example in `R` with n = 100 observations in which the coefficient estimate for the regression of X onto Y is the same as the coefficient estimate for the regression of Y onto X.**  
