@@ -12,14 +12,14 @@ knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=F)
 ## Problem 2.
 
 **Carefully explain the differences between the KNN classifier and KNN regression methods.**  
-Given a value for K and a prediction point x~0~, KNN regression first identifies the K training observations closest to x~0~. It estimates f(x~0~) by averaging all of the training responses closes to x~0~. This output is typically a continuous, numerical value.  
+Given a value for K and a prediction point \(x_0\), KNN regression first identifies the K training observations closest to \(x_0\). It estimates \(f(x_0)\) by averaging all of the training responses closes to \(x_0\). This output is typically a continuous, numerical value.  
 
-The KNN classifier first identifies the K points in the training data closest to x~0~. This output will be given a label for a categorical value.  
+The KNN classifier first identifies the K points in the training data closest to \(x_0\). This output will be given a label for a categorical value.  
 
 ## Problem 9.
 This question involves the use of multiple linear regression on the [Auto](https://rdrr.io/cran/ISLR/man/Auto.html) data set.  
 
-```{r attachdata}
+```{r getdata}
 library (ISLR)
 attach (Auto)
 ```
@@ -36,31 +36,58 @@ names (Auto)
 cor(Auto[1:8])
 ```
 
-**(c) Use the `lm()` function to perform a multiple linear regression with `mpg` as the response and all other variables except `name` as the predictors. Use the `summary()` function to print the results. Comment on the output. For instance  **
-**i. Is there a relationship between the predictors and the response?**  
+**(c) Use the `lm()` function to perform a multiple linear regression with `mpg` as the response and all other variables except `name` as the predictors. Use the `summary()` function to print the results. Comment on the output. For instance:**  
+  
+-i. Is there a relationship between the predictors and the response? 
 ```{r 9_c_i}
 fit9_c <-lm(mpg ~ . - name, data = Auto)
 summary(fit9_c)
 ```  
-**ii. Which predictors appear to have a statistically significant relationship to the response?**  
-**iii. What does the coefficient for the `year` variable suggest?**  
+-ii. Which predictors appear to have a statistically significant relationship to the response?**  
+  
+By looking at the p-values, we see that all of the variables are statistically significant except for cylinders, horsepower, and acceleration.  
+  
+-iii. What does the coefficient for the `year` variable suggest?  
+  
+Assuming all other variables remain constant, each year will increase mpg by 0.75 miles. This is almost an increase of +1 mpg per year.  
 
 **(d) Use the `plot()` function to produce diagnostic plots of the linear regression fit. Comment on any problems you see with the fit. Do the residual plot suggest any unusually large outliers? Does the leverage plot identify any observations with unusually high leverage?**  
-
+  
+``` {r 9-d}
+par(mfrow = c(2,2))
+plot(fit9_c)
+```
+  
+The Standardized Residuals vs Leverage chart has very few outliers.  
+  
 **(e) Use the * and : symbols to fit linear regression models with interaction effects. Do any interactions appear to be statistically significant?**  
+  
+``` {r 9-c}
+fit9_e <- lm(mpg ~ cylinders * displacement + displacement * weight, data = Auto[, 1:8])
+summary (fit9_e)
+```
+  
+From the p-values, displacement by weight is statistically significant while cylinders by displacement is not.  
 
-**(f) Try a few different transformations of the variables, such as log(x), \[\sqrt{x}\], \[x^{2}\]. Comment on your findings.  **
-
+**(f) Try a few different transformations of the variables, such as $\displaystyle log(x), \sqrt{x}\ , x^{2}$. Comment on your findings.  **  
+  
+```{r 9-f}
+par(mfrow = c(2, 2))
+plot(log(Auto$horsepower), Auto$mpg)
+plot(sqrt(Auto$horsepower), Auto$mpg)
+plot((Auto$horsepower)^2, Auto$mpg)
+```
+  
+While using horsepower as our only predictor, the `log()` function gives us the most linear looking plot.
 
 ## Problem 10.
 This question should be answered using the [Carseats](https://rdrr.io/cran/ISLR/man/Carseats.html) data set.
 
-```{r getdata}
-library(ISLR)
+```{r Carseats}
 attach(Carseats)
 ```
 **(a) Fit a multiple regression model to predict Sales using Price,Urban,and US.**  
-```{r}
+```{r 10-a}
 fit<-lm(Sales~Price+Urban+US)
 summary(fit)
 ```
@@ -74,7 +101,7 @@ From the table above, `Price` and `US` are significant predictors of `Sales,` fo
 `Price` and `US`
 
 **(e) On the basis of your response to the previous question, fit a smaller model that only uses the predictors for which there isevidence of association with the outcome.**  
-```{r}
+```{r 10-e}
 fit<-lm(Sales~Price+Urban+US)
 summary(fit)
 ```
@@ -83,17 +110,63 @@ summary(fit)
 Models do not fit well. Each model explains around 23% of the variance in Sales.
 
 **(g) Using the model from (e), obtain 95 % confidence intervals for the coefficient(s).**  
-```{r}
+```{r 10-g}
 confint(fit)
 ```
 **(h) Is there evidence of outliers or high leverage observations in the model from (e)?**  
+  
+``` {r 10-h}
+par(mfrow = c(2,2))
+plot(fit)
+summary(influence.measures(fit))
+```
+There are a few outliers in the data set.
+
+```{r 10-h-2}
+outyling.obs<-c(26,29,43,50,51,58,69,126,160,166,172,175,210,270,298,314,353,357,368,377,384,387,396)
+Carseats.small<-Carseats[-outyling.obs,]
+fit2<-lm(Sales~Price+US,data=Carseats.small)
+summary(fit2)
+```
+With the outliers removed, there is little change to the linear model. Thus, the outliers do not have a great affect on the data set.
 
 
 ## Problem 12
 This problem involves simple linear regression without an intercept.  
 
 **(a) Recall that the coefficient estimate \hat{β} for the linear regression of Y onto X without an intercept is give by (3.38). Under what circumstance is the coefficient estimate for the regression of X onto Y the same as the  estimate for the regression of Y onto X. **  
+  
+The formula for the regression of Y onto X is \(\hat \beta =\frac{{}(\sum_{i=1}^{n}x_{i}y_{i})}{\sum_{i'=1}^{n} x_{i'}^{2}}\).  
+The formula for the regression of X onto Y is \(\hat \beta =\frac{{}(\sum_{i=1}^{n}x_{i}y_{i})}{\sum_{i'=1}^{n} y_{i'}^{2}}\).  
+Thus, the coefficients will be the same if, and only if \(\sum_{i} x_i^{2} = \sum_{i} y_i^{2} \)
 
 **(b) Generate an example in `R` with n = 100 observations in which the coefficient estimate for the regression of X onto Y is different from the coefficient estimate for the regression of Y onto X.**  
 
+```{r 12-b}
+set.seed(15)
+x <- 1:100
+sum (x^2)
+
+y <- 2 * x + rnorm(100, sd = 0.1)
+sum (y^2)
+
+fity <- lm (y ~ x + 0)
+fitx <- lm (x ~ y + 0)
+summary (fity)
+summary (fitx)
+```
+
 **(c) Generate an example in `R` with n = 100 observations in which the coefficient estimate for the regression of X onto Y is the same as the coefficient estimate for the regression of Y onto X.**  
+
+``` {r 12-c}
+sum (x^2)
+Y <- 100:1
+sum (Y^2)
+
+fit_y <- lm (y ~ x + 0)
+fit_x <- lm (x ~ y + 0)
+
+summary (fit_y)
+
+summary (fit_x)
+```
