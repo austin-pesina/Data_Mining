@@ -504,8 +504,121 @@ table(knn.auto20, Auto_testing$mpg01)</code></pre>
 <div id="problem-13" class="section level2">
 <h2>Problem 13</h2>
 <p><strong>Using the <a href="http://lib.stat.cmu.edu/datasets/boston">Boston</a> data set, fit classification models in order to predict whether a given suburb has a crime rate above or below the median. Explore logistic regression, LDA, and KNN models using various subset of the predictors. Describe your findings.</strong></p>
-<pre class="r"><code>attach(Boston)</code></pre>
-<p>Answer.</p>
+<pre class="r"><code>attach(Boston)
+crim01 &lt;- rep(0, length(crim))
+crim01[crim &gt; median(crim)] &lt;- 1
+Boston &lt;- data.frame(Boston, crim01)
+
+train.b &lt;- 1:(length(crim)/2)
+test.b &lt;- (length(crim)/2+1): length(crim)
+Boston.train &lt;- Boston[train.b,]
+Boston.test &lt;- Boston[test.b,]
+crim01.test &lt;- crim01[test.b]</code></pre>
+<div id="logistic-regression" class="section level3">
+<h3>Logistic Regression</h3>
+<pre class="r"><code>glm.fit.b &lt;- glm(crim01 ~ . - crim01 - crim, data = Boston, family = binomial, subset = train.b)</code></pre>
+<pre><code>## Warning: glm.fit: fitted probabilities numerically 0 or 1 occurred</code></pre>
+<pre class="r"><code>summary(glm.fit.b)</code></pre>
+<pre><code>## 
+## Call:
+## glm(formula = crim01 ~ . - crim01 - crim, family = binomial, 
+##     data = Boston, subset = train.b)
+## 
+## Deviance Residuals: 
+##      Min        1Q    Median        3Q       Max  
+## -2.83229  -0.06593   0.00000   0.06181   2.61513  
+## 
+## Coefficients:
+##               Estimate Std. Error z value Pr(&gt;|z|)    
+## (Intercept) -91.319906  19.490273  -4.685 2.79e-06 ***
+## zn           -0.815573   0.193373  -4.218 2.47e-05 ***
+## indus         0.354172   0.173862   2.037  0.04164 *  
+## chas          0.167396   0.991922   0.169  0.86599    
+## nox          93.706326  21.202008   4.420 9.88e-06 ***
+## rm           -4.719108   1.788765  -2.638  0.00833 ** 
+## age           0.048634   0.024199   2.010  0.04446 *  
+## dis           4.301493   0.979996   4.389 1.14e-05 ***
+## rad           3.039983   0.719592   4.225 2.39e-05 ***
+## tax          -0.006546   0.007855  -0.833  0.40461    
+## ptratio       1.430877   0.359572   3.979 6.91e-05 ***
+## black        -0.017552   0.006734  -2.606  0.00915 ** 
+## lstat         0.190439   0.086722   2.196  0.02809 *  
+## medv          0.598533   0.185514   3.226  0.00125 ** 
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
+## 
+## (Dispersion parameter for binomial family taken to be 1)
+## 
+##     Null deviance: 329.367  on 252  degrees of freedom
+## Residual deviance:  69.568  on 239  degrees of freedom
+## AIC: 97.568
+## 
+## Number of Fisher Scoring iterations: 10</code></pre>
+<pre class="r"><code>glm.probs.b=predict(glm.fit.b, Boston.test, type = &quot;response&quot;)
+glm.pred.b &lt;- rep(0, length(glm.probs.b))
+glm.pred.b[glm.probs.b &gt; 0.5] &lt;- 1
+table(glm.pred.b, crim01.test)</code></pre>
+<pre><code>##           crim01.test
+## glm.pred.b   0   1
+##          0  68  24
+##          1  22 139</code></pre>
+<pre class="r"><code>mean(glm.pred.b != crim01.test)</code></pre>
+<pre><code>## [1] 0.1818182</code></pre>
+<p>For this logistic regression, there is an error rate of about 18.1%.</p>
+</div>
+<div id="lda-1" class="section level3">
+<h3>LDA</h3>
+<pre class="r"><code>lda.fit.b &lt;- lda(crim01 ~ . - crim01 - crim, data = Boston, subset = train.b)
+lda.pred.b &lt;- predict(lda.fit.b, Boston.test)
+table(lda.pred.b$class, crim01.test)</code></pre>
+<pre><code>##    crim01.test
+##       0   1
+##   0  80  24
+##   1  10 139</code></pre>
+<pre class="r"><code>mean(lda.pred.b$class != crim01.test)</code></pre>
+<pre><code>## [1] 0.1343874</code></pre>
+<p>For this LDA, the error rate is about 13.4%.</p>
+</div>
+<div id="knn-k-1" class="section level3">
+<h3>KNN <span class="math inline">\((k = 1)\)</span></h3>
+<pre class="r"><code>train.x.b &lt;- cbind(zn, indus, chas, nox, rm, age, dis, rad, tax, ptratio, black, lstat, medv)[train.b,]
+test.x.b &lt;- cbind(zn, indus, chas, nox, rm, age, dis, rad, tax, ptratio, black, lstat, medv)[test.b,]
+train.crim01 &lt;- crim01[train.b]
+set.seed(1)
+knn.pred.b1 &lt;- knn(train.x.b, test.x.b, train.crim01, k =1)
+table(knn.pred.b1, crim01.test)</code></pre>
+<pre><code>##            crim01.test
+## knn.pred.b1   0   1
+##           0  85 111
+##           1   5  52</code></pre>
+<pre class="r"><code>mean(knn.pred.b1 != crim01.test)</code></pre>
+<pre><code>## [1] 0.458498</code></pre>
+<p>For KNN <span class="math inline">\((k = 1)\)</span>, we have an error rate of 45.9%.</p>
+</div>
+<div id="knn-k-10" class="section level3">
+<h3>KNN <span class="math inline">\((k = 10)\)</span></h3>
+<pre class="r"><code>knn.pred.b10 &lt;- knn(train.x.b, test.x.b, train.crim01, k = 10)
+table(knn.pred.b10, crim01.test)</code></pre>
+<pre><code>##             crim01.test
+## knn.pred.b10   0   1
+##            0  83  23
+##            1   7 140</code></pre>
+<pre class="r"><code>mean(knn.pred.b10 != crim01.test)</code></pre>
+<pre><code>## [1] 0.1185771</code></pre>
+<p>For KNN <span class="math inline">\((k = 10)\)</span>, our error rate decreases to 11.9%.</p>
+</div>
+<div id="knn-k-20" class="section level3">
+<h3>KNN <span class="math inline">\((k = 20)\)</span></h3>
+<pre class="r"><code>knn.pred.b20 &lt;- knn(train.x.b, test.x.b, train.crim01, k = 20)
+table(knn.pred.b20, crim01.test)</code></pre>
+<pre><code>##             crim01.test
+## knn.pred.b20   0   1
+##            0  83  23
+##            1   7 140</code></pre>
+<pre class="r"><code>mean(knn.pred.b20 != crim01.test)</code></pre>
+<pre><code>## [1] 0.1185771</code></pre>
+<p>For KNN <span class="math inline">\((k = 20)\)</span>, our error rate remains at 11.9%.</p>
+</div>
 </div>
 
 

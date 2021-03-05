@@ -1,7 +1,7 @@
 ---
 title: "Ch 4 Homework"
 author: "Austin Pesina"
-date: "3/3/2021"
+date: "3/5/2021"
 output: html_document
 ---
 
@@ -281,6 +281,67 @@ The accuracy for $K = 20$ is 85.7% or an error rate of 14.3%.
 
 ```{r 13}
 attach(Boston)
+crim01 <- rep(0, length(crim))
+crim01[crim > median(crim)] <- 1
+Boston <- data.frame(Boston, crim01)
+
+train.b <- 1:(length(crim)/2)
+test.b <- (length(crim)/2+1): length(crim)
+Boston.train <- Boston[train.b,]
+Boston.test <- Boston[test.b,]
+crim01.test <- crim01[test.b]
 ```
   
-Answer.
+### Logistic Regression
+```{r 13-lr}
+glm.fit.b <- glm(crim01 ~ . - crim01 - crim, data = Boston, family = binomial, subset = train.b)
+summary(glm.fit.b)
+
+glm.probs.b=predict(glm.fit.b, Boston.test, type = "response")
+glm.pred.b <- rep(0, length(glm.probs.b))
+glm.pred.b[glm.probs.b > 0.5] <- 1
+table(glm.pred.b, crim01.test)
+mean(glm.pred.b != crim01.test)
+```
+For this logistic regression, there is an error rate of about 18.1%.  
+
+### LDA
+```{r 13-lda}
+lda.fit.b <- lda(crim01 ~ . - crim01 - crim, data = Boston, subset = train.b)
+lda.pred.b <- predict(lda.fit.b, Boston.test)
+table(lda.pred.b$class, crim01.test)
+mean(lda.pred.b$class != crim01.test)
+```
+  
+For this LDA, the error rate is about 13.4%.
+
+### KNN $(k = 1)$
+```{r 13-1NN}
+train.x.b <- cbind(zn, indus, chas, nox, rm, age, dis, rad, tax, ptratio, black, lstat, medv)[train.b,]
+test.x.b <- cbind(zn, indus, chas, nox, rm, age, dis, rad, tax, ptratio, black, lstat, medv)[test.b,]
+train.crim01 <- crim01[train.b]
+set.seed(1)
+knn.pred.b1 <- knn(train.x.b, test.x.b, train.crim01, k =1)
+table(knn.pred.b1, crim01.test)
+mean(knn.pred.b1 != crim01.test)
+```
+  
+For KNN $(k = 1)$, we have an error rate of 45.9%.
+
+### KNN $(k = 10)$
+```{r 13-10NN}
+knn.pred.b10 <- knn(train.x.b, test.x.b, train.crim01, k = 10)
+table(knn.pred.b10, crim01.test)
+mean(knn.pred.b10 != crim01.test)
+```
+  
+For KNN $(k = 10)$, our error rate decreases to 11.9%.
+
+### KNN $(k = 20)$
+```{r 13-20NN}
+knn.pred.b20 <- knn(train.x.b, test.x.b, train.crim01, k = 20)
+table(knn.pred.b20, crim01.test)
+mean(knn.pred.b20 != crim01.test)
+```
+  
+For KNN $(k = 20)$, our error rate remains at 11.9%.
