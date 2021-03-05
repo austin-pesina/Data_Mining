@@ -13,7 +13,6 @@ knitr::opts_chunk$set(echo = TRUE)
 library(ISLR)
 library(MASS)
 library(class)
-library(tidyverse)
 library(corrplot)
 ```
 
@@ -124,62 +123,157 @@ The best methods are Logistic Regression and Linear Discriminant Analysis; both 
 
 **(i) Experiment with different combinations of predictors, including possible transformations and interactions, for each of the methods. Report the variables, method, and associated confusion matrix that appears to provide the best results on the held out data. Note that you should also experiment with values for K in the KNN classifier.**  
   
-Answer.  
+### QDA
+```{r 10-i-QDA}
+qda.fit2 <- qda(Direction ~ Lag1 + Lag2 + Lag5, data = Weekly, subset = training)
+qda.fit2
+qda.class2 <- predict(qda.fit2, Weekly.08)$class
+table (qda.class2, Direction.08)
+mean(qda.class2==Direction.08)
+```
+  
+### LDA
+```{r 10-i-LDA}
+lda.fit2 <- lda(Direction ~ Lag1 + Lag2 + Lag5, data = Weekly, subset = training, family = "binomial")
+lda.pred2 <- predict(lda.fit2, Weekly.08)
+lda.class2 <- lda.pred2$class
+table(lda.class2, Direction.08)
+mean(lda.class2==Direction.08)
+```
+  
+### 1NN
+```{r 10-i-1NN}
+weekly.training2 <- cbind(Lag1, Lag2, Lag5)[training,]
+weekly.test2 <- cbind(Lag1, Lag2, Lag5)[!training,]
+train.Direction2 <- Direction[training]
+set.seed(1)
+
+knn.pred1 <- knn(weekly.training2, weekly.test2, train.Direction2, k=10)
+table(knn.pred1, Direction.08)
+mean(knn.pred1 == Direction.08)
+```
+
+### 10NN
+```{r 10-i-10NN}
+knn.pred2 <- knn(weekly.training2, weekly.test2, train.Direction2, k=10)
+table(knn.pred2, Direction.08)
+mean(knn.pred2 == Direction.08)
+```
+  
+### 100NN
+```{r 10-i-100NN}
+
+knn.pred3 <- knn(weekly.training2, weekly.test2, train.Direction2, k=100)
+table(knn.pred3, Direction.08)
+mean(knn.pred3 == Direction.08)
+```
+  
+It seems like LDA and KNN, where $K = 1$ are our best fits. Note that as K increases, our accuracy decreases.  
 
 
 ## Problem 11
 
 In this problem, you will develop a model to predict whether a given car gets high or low gas mileage based on the [Auto](https://rdrr.io/cran/ISLR/man/Auto.html) data set.  
 
+```{r}
+attach(Auto)
+```
+
 **(a) Create a binary variable, `mpg01`, that contains a 1 if `mpg` contains a value above its median, and a 0 if `mpg` contains a value below its median. You can compute the median using the `median()` function. Note you may find it helpful to use the `data.frame()` function to create a single data set containing both `mpg01` and the other `Auto` variables.**  
-  
-Answer.  
+
+```{r 11-a}
+mpg01 <- rep(0, length(Auto$mpg))
+mpg01[Auto$mpg > median(Auto$mpg)] <- 1
+Auto <-  data.frame(Auto, mpg01)
+
+```
   
   
 **(b) Explore the data graphically in order to investigate the association between `mpg01` and the other features. Which of the other features seem most likely to be useful in predicting `mpg01`? Scatterplots and boxplots may be useful tools to answer this question. Describe your findings.**  
-  
-Answer.  
+
+```{r 11-b}
+corrplot(cor(Auto[,-9]), method = "square")
+```
+`Cylinders`, `Displacement`, and `Weight` have the strongest association with mpg01.There is also a strong association with `year`, as newer cars have better fuel efficiency.
   
   
 **(c) Split the data into a training set and a test set.**
 
 ```{r 11-c}
-
+set.seed(1234)
+num_train <- nrow(Auto) * 0.7
+in_Train <- sample(nrow(Auto), size = num_train)
+Auto_training <- Auto[in_Train, ]
+Auto_testing <- Auto[-in_Train, ]
 ```
 
 **(d) Perform LDA on the training data in order to predict `mpg01` using the variables that seemed most associated with `mpg01` in (b). What is the test error of the model obtained?**  
   
 ```{r 11-d}
-
+Auto.lda <- lda(mpg01 ~ displacement + weight + cylinders + year, data = Auto_training)
+Auto.prediction <- predict(Auto.lda, Auto_testing)
+table(Auto.prediction$class, Auto_testing$mpg01)
+mean(Auto.prediction$class == Auto_testing$mpg01)
 ```
-Answer.  
+This model has an error rate of 13.6%.    
   
   
 **(e) Perform QDA on the training data in order to predict `mpg01` using the variables that seemed most associated with `mpg01` in (b). What is the test error of the model obtained?**  
 
-```{11-e}
-
+```{r 11-e}
+Auto.qda <- qda(mpg01 ~ displacement + weight + cylinders + year, data = Auto_training)
+test.prediction <- predict(Auto.qda, Auto_testing)
+table(test.prediction$class, Auto_testing$mpg01)
+mean(test.prediction$class == Auto_testing$mpg01)
 ```
   
-Answer.  
+The QDA model has an accuracy of 85.6%, or an error rate of 14.4%.  
   
   
 **(f) Perform logistic regression on the training data in order to predict `mpg01` using only the variables that seemed most associated with mpg01 in (b). What is the test error of the model obtained?**
 
 ```{r 11-f}
-
+Auto.logreg <- glm(mpg01 ~ displacement + weight + cylinders + year, data = Auto_training, family = "binomial")
+predicted.probs <- predict(Auto.logreg, Auto_testing, type = "response")
+preds <- rep(0, dim(Auto_testing)[1])
+preds[predicted.probs > 0.5] = 1
+table(preds, Auto_testing$mpg01)
+mean(preds == Auto_testing$mpg01)
 ```
    
-Answer.  
+Logistic Regression has an accuracy of 88.1% or an error rate of 11.9%.  
 
 **(g) Perform KNN on the training data, with several values of K, in order to predict mpg01. Use only the variables that seemed most associated with `mpg01` in (b). What test errors do you obtain? Which value of K seems to perform the best on this data set?**  
 
 ```{r 11-g}
-
+train.x2 <- cbind(Auto_training$displacement, Auto_training$weight, Auto_training$cylinders, Auto_training$year)
+test.x2 <- cbind(Auto_testing$displacement, Auto_testing$weight, Auto_testing$cylinders, Auto_testing$year)
+train.y2 <- cbind(Auto_training$mpg01)
 ```
    
-Answer.  
-
+### For K = 1:
+```{r 11-g-1NN}
+knn.auto1 <- knn(train.x2, test.x2, train.y2, k=1 )
+table(knn.auto1, Auto_testing$mpg01)
+mean(knn.auto1 == Auto_testing$mpg01)
+```
+The accuracy of this model is 84.7%, or an error rate of 15.3%.
+  
+### For K = 10
+```{r 11-g-10NN}
+knn.auto10 <- knn(train.x2, test.x2, train.y2, k=10)
+table(knn.auto10, Auto_testing$mpg01)
+mean(knn.auto10 == Auto_testing$mpg01)
+```
+The accuracy of $K = 10$ is 88.1% or an error rate of 11.9%.
+  
+### For K = 20
+```{r 11-g-20NN}
+knn.auto20 <- knn(train.x2, test.x2, train.y2, k=20)
+table(knn.auto20, Auto_testing$mpg01)
+mean(knn.auto20 == Auto_testing$mpg01)
+```
+The accuracy for $K = 20$ is 85.7% or an error rate of 14.3%.  
 
 ## Problem 13
 
