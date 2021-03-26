@@ -1,0 +1,122 @@
+---
+title: "R Lab Ch 5"
+author: "Austin Pesina"
+date: "3/24/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ISLR)
+set.seed(1)
+```
+
+## The Validation Set Approach
+
+``` {r Validation Set Approach}
+train <- sample(392, 196)
+head(train)
+
+lm.fit <- lm(mpg~horsepower, data = Auto, subset = train)
+attach(Auto)
+mean((mpg-predict(lm.fit,Auto))[-train]^2)
+
+#fit linear regression model including a horsepower squared term
+lm.fit2 <- lm(mpg~poly(horsepower, 2), data = Auto, subset = train)
+mean((mpg-predict(lm.fit2,Auto))[-train]^2)
+
+#fit linear regression model including a horsepower cubed term
+lm.fit3 <- lm(mpg~poly(horsepower, 3), data = Auto, subset = train)
+mean((mpg-predict(lm.fit3,Auto))[-train]^2)
+
+
+```
+
+
+## Leave-One-Out Cross Validation
+
+``` {r LOOCV}
+#fit simple linear regression using the glm function
+glm.fit <- glm(mpg~horsepower, data=Auto)
+coef(glm.fit)
+
+#fit simple linear regression using the glm function
+lm.fit=lm(mpg~horsepower, data=Auto)
+coef(lm.fit)
+
+library(boot)
+#calculate the cross-validation error of the linear model
+cv.err <- cv.glm(Auto,glm.fit)
+cv.err$delta
+
+#initiate an empty vector to store computed cross-validation errors
+cv.error <- rep(0,5)
+#fit five regressions against miles per gallon incrementing the power for the horsepower variable
+for (i in 1:5){
+  #fit the linear regression model
+  glm.fit <- glm(mpg~poly(horsepower, i), data=Auto)
+  #calculate the cross validation error and store the result in our cv.error vector
+  cv.error[i] <- cv.glm(Auto, glm.fit)$delta[1]
+}
+
+cv.error
+```
+
+
+## k-Fold Cross Validation
+
+``` {r k-Fold}
+set.seed(17)
+cv.error.10 <- rep(0,10)
+
+for (i in 1:10){
+  glm.fit <- glm(mpg~poly(horsepower, i), data=Auto)
+  cv.error.10[i] <- cv.glm(Auto, glm.fit, K=10)$delta[1]
+}
+
+cv.error.10
+```
+
+
+## Estimating the Accuracy of a Statistic of Interest
+
+``` {r Estimating Statistic}
+#create a function for alpha statistic which compares its variance to the overall covariance between two variables
+alpha.fn <- function(data, index){
+ X <- data$X[index]
+ Y <- data$Y[index]
+ return((var(Y)-cov(X,Y))/(var(X)+var(Y)-2*cov(X,Y)))
+}
+
+#test the function on the Portfolio data set using the numbers 1 to 100 as the index
+alpha.fn(Portfolio,1:100)
+
+set.seed(1)
+#test the function on the Portfolio data set using 100 randomly selected observations as the index
+alpha.fn(Portfolio,sample(100,100,replace=T))
+
+#automate the bootstrap analysis using the boot function
+boot(Portfolio, alpha.fn, R=1000)
+```
+
+
+## Estimating the Accuracy of a Linear Regression Model
+
+``` {r Estimating Linear}
+# create the boot.fn function to estimate the errors associated with the coefficients of a linear model
+boot.fn <- function(data, index){
+  return(coef(lm(mpg~horsepower, data=data, subset = index)))
+}
+
+boot.fn(Auto, 1:392)
+
+set.seed(1)
+#run the function on the random permutations of observations in the Auto data
+boot.fn(Auto, sample(392,392, replace = T))
+
+#compute the standard errors of 1,000 bootstrap estimates of the linear model coefficients using the boot function
+boot(Auto, boot.fn, 1000)
+
+#Get the computed estimates, standard errors, and associated statistics
+summary(lm(mpg~horsepower, data=Auto))$coef
+```
