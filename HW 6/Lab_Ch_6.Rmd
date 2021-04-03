@@ -1,0 +1,191 @@
+---
+title: "Lab_Ch_6"
+author: "Austin Pesina"
+date: "4/1/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ISLR)
+attach(Hitters)
+library(leaps)
+```
+
+## Best Subset Selection
+
+```{r }
+dim(Hitters)
+sum(is.na(Hitters$Salary))
+
+Hitters <- na.omit(Hitters)
+
+regfit.full <- regsubsets(Salary~., Hitters)
+summary(regfit.full)
+regfit.full <- regsubsets(Salary~., Hitters, nvmax=19)
+reg.summary <- summary(regfit.full)
+summary(reg.summary)
+reg.summary$rsq
+
+par(mfrow=c(2,2))
+plot(reg.summary$rss, xlab="Number of variables", ylab="RSS", type="l")
+plot(reg.summary$adjr2, xlab="Number of variables", ylab="RSS", type="l")
+which.max(reg.summary$adjr2)
+points(11,reg.summary$adjr2[11],col="red",cex=2,pch=20)
+plot(reg.summary$cp, xlab="Number of variables", ylab="Cp", type="l")
+which.min(reg.summary$cp)
+points(10,reg.summary$cp[10],col="red",cex=2,pch=20)
+plot(reg.summary$bic, xlab="Number of variables", ylab="BIC", type="l")
+which.min(reg.summary$bic)
+points(6,reg.summary$bic[6],col="red",cex=2,pch=20)
+
+
+ par(mfrow=c(2,2))
+plot(regfit.full, scale="r2")
+plot(regfit.full, scale="adjr2")
+plot(regfit.full, scale="Cp")
+plot(regfit.full, scale="bic")
+coef(regfit.full,6)
+```
+
+## Forward and Backward Stepwise Selection
+
+```{r }
+regfit.fwd <- regsubsets(Salary~., Hitters, nvmax=19, method="forward")
+summary(regfit.fwd)
+
+regfit.bwd <- regsubsets(Salary~., Hitters, nvmax=19, method="backward")
+summary(regfit.bwd)
+
+set.seed(1)
+train <- sample(c(TRUE,FALSE),nrow(Hitters),rep=TRUE)
+head(train)
+test <- (!train)
+head(test)
+
+regfit.best <- regsubsets(Salary~., data=Hitters[train,],nvmax=19)
+
+test.mat <- model.matrix(Salary~., data=Hitters[test,])
+
+val.errors <- rep(NA,19)
+  for(i in 1:19){
+    coefi=coef(regfit.best, id=i)
+    pred=test.mat[,names(coefi)]%*%coefi
+    val.errors[i]=mean((Hitters$Salary[test]-pred)^2)
+  }
+
+val.errors
+which.min(val.errors)
+coef(regfit.best,7)
+```
+
+## Ridge Regression Lab
+
+```{r}
+library(glmnet)
+
+x <- model.matrix(Salary~.,Hitters[,-1])
+y <- Hitters$Salary
+
+#alpha = 0, ridge
+#alpha = 1, lasso
+
+grid <- 10^seq(10,-2,length=100)
+
+ridge.mod <- glmnet(x,y,lamdda = grid, alpha = 0)
+dim(coef(ridge.mod))
+ridge.mod$lamdda[50]
+coef(ridge.mod)[,50]
+ridge.mod$lamdda[60]
+coef(ridge.mod)[,60]
+
+set.seed(1)
+train <- sample(1:nrow(x),nrow(x)/2)
+head(train)
+length(train)
+test <- (-train)
+y.test <- y[test]
+
+ridge.mod <- glmnet(x[train,],y[train],alpha = 0, lamdda=grid, thresh = 1e-12)
+ridge.pred <- predict(ridge.mod,s=4,newx = x[test,])
+mean((ridge.pred-y.test)^2)
+mean((mean(y[train])-y.test)^2)
+ridge.pred <- predict(ridge.mod,s=1e10,newx = x[test,])
+mean((ridge.pred-y.test)^2)
+lm(y~x, subset=train)
+
+#use cross validation to find tuning parameter with cv.glmnet
+
+set.seed(1)
+cv.out <- cv.glmnet(x[train,],y[train], alpha=0)
+plot(cv.out)
+bestlam <- cv.out$lamdda.min
+bestlam
+ridge.pred <- predict(ridge.mod,s=bestlam,newx = x[test,])
+mean((ridge.pred-y.test)^2)
+
+out <- glmnet(x,y,alpha = 0)
+predict(out, type='coefficients', s=bestlam,)[1:20,]
+
+
+```
+
+
+
+## The LASSO Lab
+
+```{r}
+lasso.mod <- glmnet(x[train,],y[train],alpha = 1, lamdda=grid)
+plot(lasso.mod)
+set.seed(1)
+cv.out <- cv.glmnet(x[train,],y[train],alpha=1)
+plot(cv.out)
+best.lam <- cv.out$lambda.min
+lasso.pred <- predict(lasso.mod, s=best.lam,newx = x[test,])
+mean((lasso.pred-y.test)^2)
+
+out <- glmnet(x,y,alpha=1, lamda=grid)
+lasso.coef <- predict(out, type='coefficient',s=bestlam)[1:20,]
+lasso.coef
+```
+
+##Principal Components Regression
+
+```{r}
+library(pls)
+set.seed(2)
+pcr.fit <- pcr(Salary~., data=Hitters, scale=T, validation="CV")
+summary(pcr.fit)
+validationplot(pcr.fit, val.type = "MSEP")
+
+
+set.seed(1)
+pcr.fit <- pcr(Salary~.,data=Hitters[train,], scale=T, validation="CV")
+validationplot(pcr.fit, val.type = "MSEP")
+pcr.pred <- predict(pcr.fit, Hitters[test,], ncomp=5)
+mean((pcr.pred-Hitters$Salary[test])^2)
+pcr.pred <- predict(pcr.fit, Hitters[test,], ncomp=7)
+mean((pcr.pred-Hitters$Salary[test])^2)
+
+
+
+```
+
+
+
+## Partial Least Squares Regression
+
+```{r}
+#plsr function, same syntax as pcr function
+
+set.seed(1)
+pls.fit <- plsr(Salary~., data=Hitters[train,], scale=T, validation = "CV")
+summary(pls.fit)
+pls.pred <- predict(pls.fit, Hitters[test,], ncomp=2)
+mean((pls.pred-Hitters$Salary[test])^2) #comparable to test MSE from Principal Components but slightly higher
+
+#best performing model has lowest MSE
+
+pls.fit <- plsr(Salary~.,data = Hitters, scale = T, ncomp=2)
+summary(pls.fit)
+```

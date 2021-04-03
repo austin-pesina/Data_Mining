@@ -1,0 +1,242 @@
+---
+title: "ISLR Ch. 6"
+author: "Austin Pesina"
+date: "4/1/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ISLR)
+library(MASS)
+library(pls)
+library(glmnet)
+library(leaps)
+attach(Boston)
+attach(College)
+```
+
+## Problem 2
+
+For parts (a) through (c), indicate which of i. through iv. is correct. Justify your answer.
+  *i. More flexible and hence will give improved prediction accuracy when it increase in bias is less than its decrease in variance*  
+  *ii. More flexible and hence will give improved prediction accuracy when its increase in variance is less than its decrease in bias.*  
+  *iii. Less flexible and hence will give improved prediction accuracy when its increase in bias is less than its decrease in variance.*  
+  *iv. Less flexible and hence will give improved prediction accuracy when its increase in variance is less than the decrease in bias.*  
+
+
+**(a) The lasso, relative to least squares, is:**
+
+*iii. Less flexible and hence will give improved prediction accuracy when its increase in bias is less than its decrease in variance.*   
+
+Lasso's advantage comes from the bias-variance trade-off. While a least squares estimate has high variance, the lasso reduces the variance in exchange for a small increase in bias.
+
+**(b) Repeat (a) for ridge regression relative to least squares.**  
+
+*iii. Less flexible and hence will give improved prediction accuracy when its increase in bias is less than its decrease in variance.*  
+
+Like the lasso, ridge regression's advantage also comes from the bias-variance trade-off. However, instead of comparing the least square estimate, ridge regression is a comparison between $\lambda$ and variance and bias.  
+
+**(c) Repeat (a) for non-linear methods relative to least squares.**  
+
+*ii. More flexible and hence will give improved prediction accuracy when its increase in variance is less than its decrease in bias.*
+
+Non-linear methods are generally more flexible than least squares.
+
+## Problem 9In this exercise, we will predict the number of application received using the other variables in the `College` data set.
+
+**(a) Split the data set into a training set and a test set.**
+
+```{r 9-a}
+set.seed(1)
+trainindex <- sample(nrow(College), 0.75*nrow(College))
+head(trainindex)
+train <- College[trainindex,]
+test <- College[-trainindex,]
+dim(College)
+dim(train)
+dim(test)
+```
+
+
+**(b) Fit a linear model using least squares on the training set, and report the test error obtained.**
+
+```{r 9-b}
+lm.fit <- lm(Apps~., data=train)
+summary(lm.fit)
+lm.pred <- predict(lm.fit, newdata=test)
+lm.err <- mean((test$Apps-lm.pred)^2)
+lm.err
+```
+
+The test error from the model on all variables is 1384604 The $r^2$ is 93.36%, meaning that 93% of the variance is described by the model.  
+
+
+**(c) Fit a ridge regression model on the training set, with $\lambda$ chosen by cross-validation. Report the test error obtained, along with the number of non-zero coefficient estimates.**
+
+```{r 9-c}
+xtrain <- model.matrix(Apps~., data=train[,-1])
+ytrain <- train$Apps
+xtest <- model.matrix(Apps~., data=test[,-1])
+ytest <- test$Apps
+ridge.fit <- cv.glmnet(xtrain,ytrain,alpha=0)
+plot(ridge.fit)
+```
+```{r 9-c-1}
+ridge.lambda <- ridge.fit$lambda.min
+ridge.lambda
+```
+After comparing $\lambda$ and the MSE for ridge regression, we find the $\lambda$ that reduces the error is 364.62
+
+```{r 9-c-2}
+ridge.pred <- predict(ridge.fit, s=ridge.lambda, newx = xtest)
+ridge.err <- mean((ridge.pred-ytest)^2)
+ridge.err
+```
+
+The ridge regression of 1260111 is a better test error than the OLS.
+
+**(d) Fit a lasso model on the training set, with $\lambda$ chosen by cross-validation. Report the test error obtained, along with the number of non-zero coefficient estimates.**
+
+```{r 9-d}
+lasso.fit <- cv.glmnet(xtrain, ytrain, alpha=1)
+plot(lasso.fit)
+```
+```{r 9-d-2}
+lasso.lambda <- lasso.fit$lambda.min
+lasso.lambda
+lasso.pred <- predict(lasso.fit, s=lasso.lambda, newx= xtest)
+lasso.err <- mean((lasso.pred-ytest)^2)
+lasso.err
+
+lasso.coef <- predict(lasso.fit, type="coefficients", s=lasso.lambda)[1:18,]
+lasso.coef
+```
+
+Lasso did not perform as well in prediction accuracy compared to the ridge regression. The variance in ridge regression was lower than lass, so it produces a smaller error.    
+
+**(e) Fit a PCR model on the training set, with $M$ chosen by cross-validation. Report the test error obtained, along with the value of $M$ selected by cross-validation.**
+
+```{r 9-e}
+pcr.fit <- pcr(Apps~., data=train, scale=T, validation="CV")
+validationplot(pcr.fit, val.typ="MSEP")
+summary(pcr.fit)
+```
+
+Using cross-validation with the MSEP, the lowest MSE is at 17 components. 17 components has the lowest CV error and explains 100% of the variance in the predictors, and 93% of the variance in `Apps`.
+
+```{r 9-e-2}
+pcr.pred <- predict(pcr.fit, test, ncom=17)
+pcr.err <- mean((pcr.pred-test$Apps)^2)
+pcr.err
+```
+The PCR model does not outperform any of the other models.
+
+**(f) Fit a PLS model on the training set, with $M$ chosen by cross-validation. Report the test error obtained, along with the value of $M$ selected by cross-validation.**
+
+```{r 9-f}
+pls.fit <- plsr(Apps~., data=train, scale=T, validation="CV")
+validationplot(pls.fit, val.type = "MSEP")
+summary(pls.fit)
+```
+
+With this validation plot, we see that the MSE begins to drop towards its lowest at around 5 components. At 9 components we begin to see very little increase in the amount of variance that the response variable explains.
+
+```{r 9-f-2}
+pls.pred <- predict(pls.fit, test, ncomp=9)
+pls.err <- mean((pls.pred-test$Apps)^2)
+pls.err
+```
+
+The PLS model come close to beating out ridge regression, but does not outperform it. PCR normally does not outperform ridge regression. PLS reduces dimensions by reducing bias.
+
+**(g) Comment on the results obtained. How accurately can we predict the number of college applications received? Is there much difference among the test errors resulting from these five approaches?**
+
+Answer.  
+
+
+## Problem 11
+
+We will now try to predict per capita crime rate in the `Boston` data set.
+
+**(a) Try out some of the regression methods explored in this chapter, such as best subset selection, the lasso, ridge regression, and PCR. Present and discuss results for the approaches that you consider.**
+
+### Best Subset Selection
+```{r 11-a-bestsubset}
+predict.regsubsets <- function(object, newdata, id, ...) {
+    form <- as.formula(object$call[[2]])
+    mat <- model.matrix(form, newdata)
+    coefi <- coef(object, id=id)
+    mat[, names(coefi)] %*% coefi
+}
+
+k <- 10
+p <- ncol(Boston) - 1
+folds <- sample(rep(1:k, length = nrow(Boston)))
+
+cv.errors <- matrix(NA,k,p)
+for (i in 1:k) {
+    best.fit <- regsubsets(crim ~ ., data = Boston[folds != i, ], nvmax = p)
+    for (j in 1:p) {
+          pred <- predict(best.fit, Boston[folds ==i,], id=j)
+          cv.errors[i,j] <- mean((Boston$crim[folds == i]-pred)^2)
+    }
+                }
+
+rmse.cv <- sqrt(apply(cv.errors, 2, mean))
+plot(rmse.cv, pch=19, type = "b")
+
+summary(best.fit)
+which.min(rmse.cv)
+boston.bsm.err <- (rmse.cv[which.min(rmse.cv)]^2)
+boston.bsm.err
+```
+
+Cross-validation selects a 9-variable model. With 9-variables, the CV estimate for the test MSE is 43.0866. The included variables are zn, indus, nox, dis, rad, ptratio, black, lstat, and medv.  
+
+## LASSO
+
+```{r 11-a-lasso}
+
+boston.x <- model.matrix(crim~., data = Boston)[,-1]
+boston.y <- Boston$crim
+boston.lasso <- cv.glmnet(boston.x,boston.y,alpha=1, type.measure ="mse")
+plot(boston.lasso)
+
+coef(boston.lasso)
+boston.lasso.err <- (boston.lasso$cvm[boston.lasso$lambda==boston.lasso$lambda.1se])
+boston.lasso.err
+```
+
+Lasso is a variable reduction model. The MSE only keeps 1 variable, rad, and has an MSE of 57.1.
+
+### Ridge Regression
+
+```{r 11-a-ridge}
+boston.ridge <- cv.glmnet(boston.x,boston.y, type.measure="mse", alpha=0)
+plot(boston.ridge)
+
+coef(boston.ridge)
+boston.ridge.err <- boston.ridge$cvm[boston.ridge$lambda==boston.ridge$lambda.1se]
+boston.ridge.err
+```
+
+The ridge reduction does not perform as well as the other regressions so far. The MSE is 55.08.
+
+### PCR
+
+```{r 11-a-pcr}
+boston.pcr <- pcr(crim~., data=Boston, scale=T, valdiation="CV")
+summary(boston.pcr)
+```
+
+An appropriate PCR would contain 9 components. With 9 components, 95.4% of the variance with explained by the components in the model and 42.5% is explained in the response variable
+
+
+**(b) Propose a model (or set of models) that seem to perform well on this data set, and justify your answer. Make sure that you are evaluating model performance using validation set error, cross-validation, or some other reasonable alternative, as opposed to using training error.**
+
+The model with the lowest cross-validation error is the best subset selection method, which had an MSE of 43.08.  
+
+**(c) Does your chosen model involve all of the features in the data set? WHy or why not?**
+
+The best subset model only used 9 variables: zn, indus, nox, dis, rad, ptratio, black, lstat, and medv. If we included the rest of the variables, there would be more variation. We are looking to predict accuracy with low variance and low MSE, so we did not use those variables.
