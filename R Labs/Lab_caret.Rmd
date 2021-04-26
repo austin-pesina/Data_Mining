@@ -1,0 +1,103 @@
+---
+title: "CARET Lab"
+author: "Austin Pesina"
+date: "4/9/2021"
+output: html_document
+---
+based on: https://rpubs.com/uky994/592751
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(caret)
+library(modelr)
+set.seed(303)
+```
+
+##Part Regression
+
+```{r}
+catalog <- read_csv("~/Data_Mining/Data/catalog.csv")
+str(catalog)
+catalog$CollGifts<-as_factor(catalog$CollGifts)
+catalog$BricMortar<-as_factor(catalog$BricMortar)
+catalog$MarthaHome<-as_factor(catalog$MarthaHome)
+catalog$SunAds<-as_factor(catalog$SunAds)
+catalog$ThemeColl<-as_factor(catalog$ThemeColl)
+catalog$CustDec<-as_factor(catalog$CustDec)
+catalog$RetailKids<-as_factor(catalog$RetailKids)
+catalog$TeenWr<-as_factor(catalog$TeenWr)
+catalog$Carlovers<-as_factor(catalog$Carlovers)
+catalog$CountryColl<-as_factor(catalog$CountryColl)
+str(catalog)
+
+
+cat.clean <- filter(catalog, Age>=18, LenRes<=Age)
+dim(cat.clean)
+summary(cat.clean)
+
+cat.clean %>%
+  ggplot(aes(x=log(SpendRat))) + geom_histogram()
+
+
+## Set up Repeated k-fold Cross Validation
+train_control <- trainControl(method="repeatedcv", number=10, repeats=3)
+```
+
+**a. Fit a linear model using least squares on the training set, and report the CV error obtained**
+
+```{r}
+lm.fit<-train(log(SpendRat)~., data=cat.clean, trControl=train_control,method='lm')
+print(lm.fit)
+```
+
+**b. Fit a ridge regression model on the training set, with $\lambda$ chosen by cross-validation. Report the CV error obtained.**
+
+```{r}
+y_train=log(cat.clean$SpendRat)
+
+X_train=model_matrix(cat.clean,log(SpendRat)~Age+LenRes+Income+TotAsset+SecAssets+ShortLiq+LongLiq+WlthIdx+SpendVol+SpenVel+CollGifts+BricMortar+MarthaHome+SunAds+ThemeColl+CustDec+RetailKids+TeenWr+Carlovers+CountryColl)
+
+parameters <- c(seq(0.1, 2, by =0.1) ,  seq(2, 5, 0.5) , seq(5, 25, 1))
+
+ridge.fit<-train(y=y_train,x=X_train,method='glmnet',trControl=train_control,tuneGrid=expand.grid(alpha=0,lambda = parameters))
+
+print(ridge.fit)
+```
+
+**c. Fit a lasso model on the training set, with $\lambda$ chosen by cross-validation. Report the CV error obtained, along iwth the number of non-zero coefficient estimates.**
+
+```{r}
+y_train=log(cat.clean$SpendRat)
+
+X_train=model_matrix(cat.clean,log(SpendRat)~Age+LenRes+Income+TotAsset+SecAssets+ShortLiq+LongLiq+WlthIdx+SpendVol+SpenVel+CollGifts+BricMortar+MarthaHome+SunAds+ThemeColl+CustDec+RetailKids+TeenWr+Carlovers+CountryColl)
+
+parameters <- c(seq(0.1, 2, by =0.1) ,  seq(2, 5, 0.5) , seq(5, 25, 1))
+lasso.fit<-train(y=y_train,x=X_train,method='glmnet',trControl=train_control,tuneGrid=expand.grid(alpha=1,lambda = parameters))
+
+print(lasso.fit)
+```
+
+**d. Fit a PCR model on the training set, with M chosen by cross-validation. Report the CV error obtained, along with the value of M selected by cross-validation.**
+
+```{r}
+pcr.fit<-train(log(SpendRat)~., data=cat.clean, trControl=train_control,tuneLength=ncol(cat.clean),method='pcr')
+
+plot(pcr.fit)
+
+pcr.fit$bestTune
+
+print(pcr.fit)
+```
+
+**e. Fit a PLS model on the training set, with M chosen by cross-validation. Report the CV error obtained, along with the value of M selected by cross-validation.**
+
+```{r}
+pls.fit<-train(log(SpendRat)~., data=cat.clean, trControl=train_control,tuneLength=ncol(cat.clean),method='pls')
+
+plot(pls.fit)
+
+pls.fit$bestTune
+
+print(pls.fit)
+```

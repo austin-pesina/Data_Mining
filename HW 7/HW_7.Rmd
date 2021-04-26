@@ -1,0 +1,175 @@
+---
+title: "ISLR_Ch_7"
+author: "Austin Pesina"
+date: "4/23/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ISLR)
+library(leaps)
+library(boot)
+library(gam)
+library(splines)
+```
+
+## Problem 6
+
+In this exercise, you will further analyze the [Wage](https://rdrr.io/cran/ISLR/man/Wage.html) data set considered throughout this chapter.
+
+**(a) Perform polynomial regression to predict `wage` using `age`. Use cross-validation to select the optimal degree $d$ for the polynomial. What degree was chosen, and how does this compare to the results of hypothesis testing using ANOVA? Make a plot of the resulting polynomial fit to the data.**
+
+```{r cars}
+attach(Wage)
+set.seed(1)
+cv.error <- rep(0,5)
+
+for (i in 1:5){
+glm.fit <- glm(wage ~ poly(age,i),data=Wage)
+cv.error[i]<- cv.glm(Wage,glm.fit,K=10)$delta[1]
+}
+cv.error
+
+plot(cv.error, type="b", xlab="Degree", ylab="Test MSE")
+points(which.min(cv.error), cv.error[4], col="red", pch=20, cex=2)
+```
+The optimal degree via cross-validation is 5.  
+
+```{r}
+fit_1 <- lm(wage ~ age, data=Wage)
+fit_2 <- lm(wage ~ poly(age, 2), data=Wage) 
+fit_3 <- lm(wage ~ poly(age, 3), data=Wage) 
+fit_4 <- lm(wage ~ poly(age, 4), data=Wage) 
+fit_5 <- lm(wage ~ poly(age, 5), data=Wage) 
+anova(fit_1, fit_2, fit_3, fit_4, fit_5)
+```
+The p-value shows a quadratic fit would be a reasonable fit for the data.
+
+```{r}
+age_lim <- range(age)
+age_grid <- seq(from=age_lim[1], to=age_lim[2])
+preds <- predict(fit_4, newdata=list(age=age_grid),se=TRUE)
+se_bands <- cbind(preds$fit+2*preds$se.fit,preds$fit-2*preds$se.fit)
+
+plot(age, wage, xlim=age_lim, cex=.5, col="darkgrey")
+lines(age_grid, preds$fit, lwd=2, col="blue")
+matlines(age_grid, se_bands, lwd=1, col="blue", lty=3)
+```
+
+**(b) Fit a step function to predict `wage` using `age`, and perform cross-validation to choose the optimal number of cuts. Make a plot of the fit obtained.**
+
+```{r}
+set.seed(2)
+
+cv.errors <- rep(NA, 10)
+
+for(i in 2:10){
+  Wage$age.cut <- cut(Wage$age,i)
+  glm.fit <- glm(wage ~ age.cut, data=Wage)
+  cv.errors[i] <- cv.glm(Wage, glm.fit, K=10)$delta[1]
+}
+
+cv.errors
+
+
+
+plot(2:10, cv.errors[-1], type="b", xlab="Number of cuts", ylab="Test MSE")
+points(which.min(cv.errors), cv.errors[which.min(cv.errors)], col="red", pch=20, cex=2)
+```
+The optimal number of cuts is 8.  
+
+```{r}
+fit_step <- glm(wage ~ cut(age, 8), data=Wage)
+preds <- predict(fit_step, data.frame(age = age_grid))
+plot(age, wage, col="darkgray")
+lines(age_grid, preds, col="darkgreen", lwd=2)
+```
+
+
+## Problem 10
+
+This question relates to the [College](https://rdrr.io/cran/ISLR/man/College.html) data set.
+
+```{r}
+attach(College)
+```
+
+**(a) Split the data into a training set and a test set. Using out-of-state tuition as the response and the other variables as the predictors, perform forward step-wise selection on the training set in order to identify a satisfactory model that uses just a subset of the predictors.**
+
+```{r}
+set.seed(10)
+test_sample <- sample(1:nrow(College), nrow(College)/4)
+train <- College[-test_sample, ]
+test <- College[test_sample, ]
+
+
+
+fwd <- regsubsets(Outstate ~ ., data=train, nvmax=17, method='forward')
+fwd_sum <- summary(fwd)
+
+par(mfrow=c(2,2))
+plot(fwd_sum$cp ,xlab="Number of Variables ", ylab="Cp",
+type="b")
+points(which.min(fwd_sum$cp), fwd_sum$cp[which.min(fwd_sum$cp)], col="red", cex=2, pch=20)
+
+plot(fwd_sum$bic ,xlab="Number of Variables ", 
+ylab="BIC",type="b")
+points(which.min(fwd_sum$bic), fwd_sum$bic[which.min(fwd_sum$bic)], col="red", cex=2, pch=20)
+
+plot(fwd_sum$adjr2 ,xlab="Number of Variables ", 
+ylab="Adjusted R^2^",type="b")
+points(which.max(fwd_sum$adjr2), fwd_sum$adjr2[which.max(fwd_sum$adjr2)], col="red", cex=2, pch=20)
+
+
+which.min(fwd_sum$cp)
+which.min(fwd_sum$bic)
+which.max(fwd_sum$adjr2)
+
+
+
+test_matrix <- model.matrix(Outstate~., data=test)
+
+val.errors <- rep(NA,17)
+for(i in 1:17){
+ coefi <- coef(fwd,id=i)
+ pred <- test_matrix[,names(coefi)]%*%coefi
+ val.errors[i] <- mean((test$Outstate-pred)^2) 
+}
+
+which.min(val.errors)
+
+plot(val.errors, type='b')
+points(which.min(val.errors), val.errors[13], col='red', pch=20, cex=2)
+```
+The best model selected with the forward step-wise method has 14 variables but we start seeing a decrease in MSE around 5 variables.
+
+```{r}
+fwd_full <- regsubsets(Outstate ~ ., data=College, nvmax=17, method='forward')
+coef(fwd_full, 5)
+```
+
+**(b) Fit a GAM on the training data, using out-of-state tuition as the response and the features selected in the previous step as the predictors. Plot the results, and explain your findings.**
+
+```{r}
+gam_fit <- gam(Outstate ~ Private + s(Room.Board, 3) + s(Terminal, 3) + 
+                 s(perc.alumni, 3) + s(Expend, 3) + s(Grad.Rate, 3), data=train)
+
+par(mfrow=c(2,3))
+plot(gam_fit, se=TRUE, col="blue")
+```
+
+**(c) Evaluate the model obtained on the test set, and explain the results obtained.**
+
+```{r}
+preds <- predict(gam_fit, newdata = test)
+error <- mean((test$Outstate-preds)^2)
+
+val.errors[5]-error
+```
+
+**(d) FOr which variables, if any, is there evidence of a non-linear relationship with the response?**
+
+```{r}
+summary(gam_fit)
+```
