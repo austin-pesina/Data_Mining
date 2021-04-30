@@ -1,0 +1,99 @@
+---
+title: "Lab_Ch_8"
+author: "Austin Pesina"
+date: "4/27/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ISLR)
+library(caret)
+library(rpart)
+library(rattle)
+library(MASS)
+library(rpart.plot)
+```
+
+## Decision Tree
+
+```{r Decision Tree}
+High <- as.factor(ifelse(Carseats$Sales <= 8, "No", "Yes"))
+table(High)
+Carseats <- data.frame(Carseats[,-1], High)
+str(Carseats)
+
+##fit the tree
+#cp = complexity parameter
+tree.carseats <- rpart(High~., data=Carseats, method="class", control=rpart.control(minsplit = 15, cp=0.1))
+summary(tree.carseats)
+fancyRpartPlot(tree.carseats)
+
+tree.carseats
+
+printcp(tree.carseats)
+plotcp(tree.carseats)
+
+tree.carseats$cptable[which.min(tree.carseats$cptable[,"xerror"]),"CP"]
+
+carseats.prune <- prune(tree.carseats, cp=tree.carseats$cptable[which.min(tree.carseats$cptable[,"xerror"]),"CP"])
+fancyRpartPlot(carseats.prune)
+```
+
+## Regression Tree
+
+```{r Regression Tree}
+str(Boston)
+#define training control
+train_control <- trainControl(method="repeatedcv", number=10, repeats = 3)
+##fit the model
+tree.boston <- train(medv~., data=Boston, trControl=train_control, method = "rpart")
+tree.boston
+tree.boston$finalModel
+
+rpart.plot(tree.boston$finalModel)
+```
+
+## Bagging and Random Forests
+
+```{r Bagging}
+##Split into training and test
+inTrain <- createDataPartition(Boston$medv, p=0.5, list=F)
+train <- Boston[inTrain,]
+
+##fit random forest
+boston.rf <- train(medv~., data=train, method="rf", trControl=trainControl("cv", number=10), importance=T)
+
+##best tuning parameter
+boston.rf$bestTune
+
+##final model
+boston.rf$finalModel
+
+varImp(boston.rf)
+plot(varImp(boston.rf))
+```
+
+## Boosting
+
+```{r Boosting}
+# Using caret with the default grid to optimize tune parameters automaticall
+# GBM Tuning Parameters:
+# n.trees (# of Boosting Iterations)
+# interaction.depth (Max Tree Depth)
+# shrinkage (Shrinkage)
+# n.minobsinnode (Min. Terminal Node Size)
+
+
+
+train_control <- trainControl(method="cv", number = 10)
+gbm.boston <- train(medv~., data=train, distribution = "gaussian", method = "gbm",
+                    trControl = train_control, verbose=F, metric = "RMSE", bag.fraction = 0.75)
+print(gbm.boston)
+summary(gbm.boston)
+
+
+par(mfrow=c(1,2))
+plot(gbm.boston$finalModel, i="rm")
+plot(gbm.boston$finalModel, i="lstat")
+```

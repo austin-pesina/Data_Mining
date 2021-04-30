@@ -1,0 +1,195 @@
+---
+title: "ISLR_Ch_8_HW"
+author: "Austin Pesina"
+date: "4/27/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ISLR)
+library(caret)
+library(rpart)
+library(rattle)
+library(randomForest)
+library(rpart.plot)
+library(tree)
+```
+
+## Problem 3
+
+**Consider the Gini index, classification error, and entropy in a simple classification setting with two classes. Create a single plot that displays each of these quantities as a function of $\hat{p}_{m1}$, ranging from 0 to 1, and the y-axis should display the value of the Gini index, classification error, and entropy.**
+
+```{r cars}
+p <- seq(0, 1, 0.1)
+gini_index <- 2*p*(1-p)
+class_error <- 1 - pmax(p, 1-p)
+cross_entropy <- -(p * log(p) + (1 - p) * log(1 - p))
+matplot(p, cbind(gini_index, class_error, cross_entropy), col = c("red", "green", "blue"))
+```
+
+## Problem 8
+
+In the lab, a classification tree was applied to the [Carseats](https://rdrr.io/cran/ISLR/man/Carseats.html) data set after converting `Sales` using regression trees and related approaches, treating the response as a quantitative variable.
+
+**(a) Split the data set into a training set and a test set.**
+
+```{r 8a}
+set.seed(1)
+attach(Carseats)
+train <- sample(1:nrow(Carseats), nrow(Carseats) / 2)
+car_train <- Carseats[train,]
+car_test <- Carseats[-train,]
+```
+
+**(b) Fit a regression tree to the training set. Plot the tree, and interpret the results. What test MSE do you obtain?**
+
+```{r 8b}
+car_tree <- tree(Sales~., data=car_train)
+summary(car_tree)
+plot(car_tree)
+text(car_tree, pretty = 0)
+
+car_pred <- predict(car_tree, car_test)
+mean((car_test$Sales - car_pred)^2)
+```
+We get an MSE of 4.922.
+
+**(c) Use cross-validation in order to determine the optimal level of tree complexity. Does pruning the tree improve the test MSE?**
+
+```{r 8c}
+car_cv <- cv.tree(car_tree, FUN = prune.tree)
+par(mfrow = c(1,2))
+plot(car_cv$size, car_cv$dev, type = "b")
+plot(car_cv$k, car_cv$dev, type = "b")
+
+
+car_pruned <- prune.tree(car_tree, best = 14)
+par(mfrow = c(1, 1))
+plot(car_pruned)
+text(car_pruned, pretty = 0)
+
+pred_pruned <- predict(car_pruned, car_test)
+mean((car_test$Sales - pred_pruned)^2)
+```
+
+Our MSE jumped up to 5.014.  
+
+**(d) Use the bagging approach in order to analyze this data. What test MSE do you obtain? Use the `importance()` function to determine which variables are most important.**
+
+```{r 8d}
+car_bag <- randomForest(Sales ~ ., data=car_train, mtry = 10, ntree = 500, importance = T)
+pred_bag <- predict(car_bag, car_test)
+mean((car_test$Sales - pred_bag)^2)
+importance(car_bag)
+```
+
+Our MSE dropped all the way down to 2.629. We also see that our most important variables are `Price`, `Location`, and `CompPrice`.   
+
+**(e) Use random forests to analyze this data. What test MSE do you obtain? Use the `importance()` function to determine which variables are most important. Describe the effect of $m$, the number of variables considered at each split, on the error rate obtained.**
+
+```{r 8e}
+car_rf <- randomForest(Sales ~ ., data = car_train, mtry = 5, ntree = 500, importance = T)
+pred_rf <- predict(car_rf, car_test)
+mean((car_test$Sales - pred_rf)^2)
+importance((car_rf))
+```
+
+Our MSE went slightly up to 2.688 when compared to using bagging. Our most important variables are still `Price`, `Location`, and `CompPrice`.  
+
+## Problem 9
+
+This problem involves the [OJ](https://rdrr.io/cran/ISLR/man/OJ.html) data set which is part of the `ISLR` package.
+
+```{r 9}
+attach(OJ)
+set.seed(40)
+```
+
+**(a)Create a training set containing a random sample of 800 observations, and a test set containing the remaining observations.**
+
+```{r 9a}
+train <- sample(dim(OJ)[1], 800)
+oj_train <- OJ[train,]
+oj_test <- OJ[-train,]
+```
+
+
+**(b) Fit a tree to the training data with `Purchase` as the response and the other variables as predictors. Use the `summary()` function to produce summary statistics about the tree, and describe the results obtained. What is the training error rate? How many terminal nodes does the tree have?**
+
+```{r 9b}
+oj_tree <- tree(Purchase ~ ., data = oj_train)
+summary(oj_tree)
+```
+
+The training error rate is 0.185 (148/800). There are 6 terminal nodes and the three variables used are `LoyalCH`, `PriceDiff`, and `ListPriceDiff`.  
+
+**(c) Type in the name of the tree object in order to get a detailed text output. Pick one of the terminal nodes, and interpret the information displayed.**
+
+```{r 9c}
+oj_tree
+```
+
+For terminal node 11, PriceDiff, the splitting node is 0.31 and there are 52 points in this sub tree. The deviance is 72.09. The * at the end indicates that this is a terminal node. At this particular node, 50% of the sales are CH and 50% are MM.   
+
+**(d) Create a plot of the tree and interpret the results.**
+
+```{r 9d}
+plot(oj_tree)
+text(oj_tree, pretty = 0)
+```
+
+`LoyalCH` is the most important variable as there are 3 terminal nodes with `LoyalCH`.    
+
+**(e) Predict the response on the test data, and produce a confusion matrix comparing the test labels to the predicted test labels. What is the error rate?**
+
+```{r 9e}
+oj_pred <- predict(oj_tree, oj_test, type = "class")
+table(oj_test$Purchase, oj_pred)
+1-((148+68)/(148+20+34+68))
+```
+
+The error rate is about 20%.    
+
+**(f) Apply the `cv.tree()` function to the training set in order to determine the optimal tree size.**
+
+```{r 9f}
+cv_oj <- cv.tree(oj_tree, FUN = prune.tree)
+cv_oj
+```
+
+  
+
+**(g) Produce a plot with tree size on the $x$-axis and cross-validated classification error rate on the $y$-axis.**
+
+```{r 9g}
+plot(cv_oj$size, cv_oj$dev, type = "b", xlab = "Tree Size", ylab = "Deviance")
+```
+
+**(h) Which tree size corresponds to the lowest cross-validated classification error rate?**
+
+A tree size of 5 gives the lowest cross-validation error rate.  
+
+**(i) Produce a pruned tree corresponding to the optimal tree size obtained using cross-validation. If cross-validation does not lead to selection of a pruned tree, then create a pruned tree with five terminal nodes.**
+
+```{r 9i}
+oj_prune = prune.tree(oj_tree, best = 5)
+```
+
+**(j) Compare the training error rates between the pruned and unpruned trees. Which is higher?**
+
+```{r 9j}
+summary(oj_tree)
+summary(oj_prune)
+```
+
+Both the pruned and unpruned trees have the same error rate of 18.5%. 
+
+**(k) Compare the test error rates between the pruned and unpruned tree. Which is higher?**
+
+```{r 9k}
+tree_pred <- predict(oj_prune, newdata = oj_test, type = "class")
+table(tree_pred, oj_test$Purchase)
+ 1-((144+70)/(144+32+24+70))
+```
+The pruning process increased error rate by about 2%, but it is more interpretable. 
