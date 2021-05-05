@@ -1,0 +1,278 @@
+---
+title: "ISLR_Ch_9"
+author: "Austin Pesina"
+date: "5/4/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ISLR)
+library(tidyverse)
+library(caret)
+library(e1071)
+```
+
+## Problem 5
+
+We have seen that we can find an SVM with a non-linear kernel in order to perform classification using a non-linear decision boundary. We will now see that we can also obtain a non-linear transformation of the features.
+
+**(a) Generate a data set with $n = 500$ and $p = 2$, such that the observations belong to two classes with a quadratic decision boundary between them. For instance, you can do this as follows:**
+
+```{r eval=FALSE}
+x1=runif(500)-0.5
+x2=runif(500)-0.5
+y=1*(x1^2-x2^2 > 0)
+```
+
+```{r 5a}
+set.seed(1)
+x1 <- runif(500) - 0.5
+x2 <- runif(500) - 0.5
+y <-  1 * (x1^2 - x2^2 > 0)
+```
+
+
+**(b) Plot the observations, colored according to their class labels. Your plot should display $X_1$ on the $x$-axis, and $X_2$ on the $y$-axis.**
+
+```{r 5b}
+plot(x1, x2, xlab = "X1", ylab = "X2", col = (4 - y), pch = (3 - y))
+```
+
+
+**(c) Fit a logistic regression model to the data, using $X_1$ and $X_2$ as predictors.**
+
+```{r 5c}
+lm.fit <- glm(y ~ x1 + x2, family = "binomial")
+summary(lm.fit)
+```
+
+
+**(d) Apply this model to the *training data* in order to obtain a predicted class label for each training observation. Plot the observations, colored according to the *predicted* class labels. The decision boundary should be linear.**
+
+```{r 5d}
+data <- data.frame(x1 = x1, x2 = x2, y = y)
+probs <- predict(lm.fit, data, type = "response")
+preds <- rep(0, 500)
+preds[probs > 0.47] <- 1
+plot(data[preds == 1, ]$x1, data[preds == 1, ]$x2, col = (4 - 1), pch = (3 - 1), xlab = "X1", ylab = "X2")
+points(data[preds == 0, ]$x1, data[preds == 0, ]$x2, col = (4 - 0), pch = (3 - 0))
+```
+
+
+**(e) Now fit a logistic regression model to the data using non-linear functions of $X_1$ and $X_2$ as predictors (eg. $X_1^2$, $X_2$, $X_1 * X_2$, $log(X_2)$, etc.)**
+
+```{r 5e}
+log.fit <- glm(y ~ poly(x1, 2) + poly(x2, 2) + I(x1 * x2), family = "binomial")
+summary(log.fit)
+```
+
+
+**(f) Apply this model to the *training data* in order to obtain a predicted class label for each training observation. Plot the observations, colored according to the predicted class labels. The decision boundary should be obviously non-linear. If it is not, then repeat (a)-(e) until you come up with an example in which the predicted class labels are obviously non-linear.**
+
+```{r 5f}
+probs <- predict(log.fit, data, type = "response")
+preds <- rep(0, 500)
+preds[probs > 0.47] <- 1
+plot(data[preds == 1, ]$x1, data[preds == 1, ]$x2, col = (4 - 1), pch = (3 - 1), xlab = "X1", ylab = "X2")
+points(data[preds == 0, ]$x1, data[preds == 0, ]$x2, col = (4 - 0), pch = (3 - 0))
+```
+
+
+**(g) Fit a support vector classifier to the data with $X_1$ and $X_2$ as predictors. Obtain a class prediction for each training observation. Plot the observations, colored according to the *predicted class labels*.**
+
+```{r 5g}
+data$y <- as.factor(data$y)
+svm.fit <- svm(y ~ x1 + x2, data, kernel = "linear", cost = 0.01)
+preds <- predict(svm.fit, data)
+plot(data[preds == 0, ]$x1, data[preds == 0, ]$x2, col = (4 - 0), pch = (3 - 0), xlab = "X1", ylab = "X2")
+points(data[preds == 1, ]$x1, data[preds == 1, ]$x2, col = (4 - 1), pch = (3 - 1))
+```
+
+
+**(h) Fit a SVM using a non-linear kernel to the data. Obtain a class prediction for each training observation. Plot the observations, colored according to the *predicted class labels*.**
+
+```{r 5h}
+data$y <- as.factor(data$y)
+svmnl.fit <- svm(y ~ x1 + x2, data, kernel = "radial", gamma = 1)
+preds <- predict(svmnl.fit, data)
+plot(data[preds == 0, ]$x1, data[preds == 0, ]$x2, col = (4 - 0), pch = (3 - 0), xlab = "X1", ylab = "X2")
+points(data[preds == 1, ]$x1, data[preds == 1, ]$x2, col = (4 - 1), pch = (3 - 1))
+```
+
+
+**(i) Comment on your results.**
+
+The SVM models are important to use for finding non-linear models. 
+
+
+## Problem 7
+
+In this problem, you will use support vector approaches in order to predict whether a given car gets high or low gas mileage based on the [Auto](https://rdrr.io/cran/ISLR/man/Auto.html) data set.
+
+**(a) Create a binary variable that takes on a 1 for cars with gas mileage above the median and a 0 for cars with gas mileage below the median.**
+
+```{r 7a}
+var <- ifelse(Auto$mpg > median(Auto$mpg), 1, 0)
+Auto$mpglevel <- as.factor(var)
+```
+
+
+**(b) Fit a support vector classifier to the data with various values of `cost`, in order to predict whether a car gets high or low gas mileage. Report the cross-validation errors associated with different values of this parameter. Comment on you results.**
+
+```{r 7b}
+set.seed(1)
+tune.out <- tune(svm, mpglevel ~ ., data = Auto, kernel = "linear", ranges = list(cost = c(0.01, 0.1, 1, 5, 10, 100, 1000)))
+summary(tune.out)
+```
+
+A cost of 1 performs best.   
+
+
+**(c) Now repeat (b), this time using SVMs with radial and polynomial basis kernels with different values of `gamma` and `degree` and `cost`. Comment on your results.**
+
+```{r 9c}
+set.seed(1)
+tune.out <- tune(svm, mpglevel ~ ., data = Auto, kernel = "polynomial", ranges = list(cost = c(0.01, 0.1, 1, 5, 10, 100), degree = c(2, 3, 4)))
+summary(tune.out)
+
+
+tune.out <- tune(svm, mpglevel ~ ., data = Auto, kernel = "radial", ranges = list(cost = c(0.01, 0.1, 1, 5, 10, 100), gamma = c(0.01, 0.1, 1, 5, 10, 100)))
+summary(tune.out)
+```
+
+For a polynomial kernel, the lowest cross-validation error is 2 with a cost of 100.  
+  
+For a radial kernel, the lowest cross-validation error is with a gamma of 0.01 and a cost of 100.
+
+
+**(d) Make some plots to back up your assertions in (b) and (c).**
+
+```{r 9d}
+svm.linear <- svm(mpglevel ~ ., data = Auto, kernel = "linear", cost = 1)
+svm.poly <- svm(mpglevel ~ ., data = Auto, kernel = "polynomial", cost = 100, degree = 2)
+svm.radial <- svm(mpglevel ~ ., data = Auto, kernel = "radial", cost = 100, gamma = 0.01)
+plotpairs = function(fit) {
+    for (name in names(Auto)[!(names(Auto) %in% c("mpg", "mpglevel", "name"))]) {
+        plot(fit, Auto, as.formula(paste("mpg~", name, sep = "")))
+    }
+}
+plotpairs(svm.linear)
+plotpairs(svm.poly)
+plotpairs(svm.radial)
+```
+
+
+
+## Problem 8
+
+This problem involves the [OJ](https://rdrr.io/cran/ISLR/man/OJ.html) data set which is part of the `ISLR` package.
+
+**(a) Create a training set containing a random sample of 800 observations, and a test set containing the remaining observations.**
+
+```{r 8a}
+set.seed(1)
+train <- sample(nrow(OJ), 800)
+OJ.train <- OJ[train, ]
+OJ.test <- OJ[-train, ]
+```
+
+
+**(b) FIt a support vector classifier to the training data using `cost=0.01`, with `Purchase` as the response and the other variables as predictors. Use the `summary() function to produce summary statistics, and describe the results obtained.**
+
+```{r 8b}
+svm.linear <- svm(Purchase ~ ., data = OJ.train, kernel = "linear", cost = 0.01)
+summary(svm.linear)
+```
+
+A support vector classifier creates 435 support vectors out of 800 training points. 219 belong to MM and the remaining 216 belong to CH.  
+
+
+**(c) What are the training and test error rates?**
+
+```{r 8c}
+train.pred <- predict(svm.linear, OJ.train)
+table(OJ.train$Purchase, train.pred)
+(78 + 55) / (439 + 228 + 78 + 55)
+test.pred <- predict(svm.linear, OJ.test)
+table(OJ.test$Purchase, test.pred)
+(31 + 18) / (141 + 80 + 31 + 18)
+```
+
+The training error rate is 16.6% and the test error rate is 18.1%.  
+
+
+**(d) Use the `tune()` function to set an optimal `cost`. Consider values in the range 0.01 to 10.**
+
+```{r 8d}
+set.seed(2)
+tune.out <- tune(svm, Purchase ~ ., data = OJ.train, kernel = "linear", ranges = list(cost = 10^seq(-2, 1, by = 0.25)))
+summary(tune.out)
+```
+
+
+**(e) Compute the training and test error rates using this new value for `cost`.**
+
+```{r 8e}
+svm.linear <- svm(Purchase ~ ., kernel = "linear", data = OJ.train, cost = tune.out$best.parameter$cost)
+train.pred <- predict(svm.linear, OJ.train)
+table(OJ.train$Purchase, train.pred)
+(71 + 56) / (438 + 235 + 71 + 56)
+test.pred <- predict(svm.linear, OJ.test)
+table(OJ.test$Purchase, test.pred)
+(32 + 19) / (140 + 79 + 32 + 19)
+```
+
+The new training error rate is 15.9% and the new testing error rate is 18.9%.
+
+
+**(f) Repeat parts (b) through (e) using a support vector machine with a radial kernel. Use the default value for `gamma`.**
+
+```{r 8f}
+svm.radial <- svm(Purchase ~ ., kernel = "radial", data = OJ.train)
+summary(svm.radial)
+train.pred <- predict(svm.radial, OJ.train)
+table(OJ.train$Purchase, train.pred)
+(77 + 39) / (455 + 229 + 77 + 39)
+test.pred <- predict(svm.radial, OJ.test)
+table(OJ.test$Purchase, test.pred)
+(28 + 18) / (141 + 83 + 28 + 18)
+```
+
+The radial kernel with default gamma creates 373 support vectors. 188 belong to CH and 185 belong to MM. We get a training erro of 14.5% and a test error of 17%.  
+
+
+**(g) Repeat parts (b) through (e) using a support vector machine with a polynomial kernel. Set `degree=2`.**
+
+```{r 8g}
+svm.poly <- svm(Purchase ~ ., kernel = "polynomial", data = OJ.train, degree = 2)
+summary(svm.poly)
+train.pred <- predict(svm.poly, OJ.train)
+table(OJ.train$Purchase, train.pred)
+(105 + 33) / (461 + 201 + 105 + 33)
+test.pred <- predict(svm.poly, OJ.test)
+table(OJ.test$Purchase, test.pred)
+(41 + 10) / (149 + 70 + 41 + 10)
+
+
+tune.out <- tune(svm, Purchase ~ ., data = OJ.train, kernel = "polynomial", degree = 2, ranges = list(cost = 10^seq(-2, 
+    1, by = 0.25)))
+summary(tune.out)
+svm.poly <- svm(Purchase ~ ., kernel = "polynomial", degree = 2, data = OJ.train, cost = tune.out$best.parameter$cost)
+summary(svm.poly)
+train.pred <- predict(svm.poly, OJ.train)
+table(OJ.train$Purchase, train.pred)
+(72 + 44) / (450 + 234 + 72 + 44)
+test.pred <- predict(svm.poly, OJ.test)
+table(OJ.test$Purchase, test.pred)
+(31 + 19) / (140 + 80 + 31 + 19)
+```
+
+A polynomial kernel with a default gamma creates 447 vectors: 224 for CH and 222 for MM. We get a training error rate of 17.3% and a testing error rate of 18.9%.  
+  
+Tuning reduces the training error rate to 14.5% and the testing error rate to 18.5%.  
+
+
+**(h) Overall, which approach seems to give the best results on this data?**
+
+Using the radial basis kernel produces the smallest error on both training and testing data.

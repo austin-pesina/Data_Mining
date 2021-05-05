@@ -1,0 +1,97 @@
+---
+title: "Lab Ch. 9"
+author: "Austin Pesina"
+date: "5/4/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## SVM in CARET
+
+# SVM w/ CARET
+https://rpubs.com/uky994/593668
+
+```{r SVM w/ CARET}
+library(tidyverse)
+library(caret)
+
+
+# Load the data
+data("PimaIndiansDiabetes2", package = "mlbench")
+pima.data <- na.omit(PimaIndiansDiabetes2)
+# Inspect the data
+sample_n(pima.data, 3)
+
+# Set up Repeated k-fold Cross Validation
+train_control <- trainControl(method="repeatedcv", number=10, repeats=3)
+
+# Fit the model 
+svm1 <- train(diabetes ~., data = pima.data, method = "svmLinear", trControl = train_control,  preProcess = c("center","scale"))
+#View the model
+svm1
+```
+
+```{r }
+# Fit the model 
+svm2 <- train(diabetes ~., data = pima.data, method = "svmLinear", trControl = train_control,  preProcess = c("center","scale"), tuneGrid = expand.grid(C = seq(0, 2, length = 20)))
+#View the model
+svm2
+
+# Plot model accuracy vs different values of Cost
+plot(svm2)
+
+# Print the best tuning parameter C that
+# maximizes model accuracy
+svm2$bestTune
+
+res2<-as_tibble(svm2$results[which.min(svm2$results[,2]),])
+res2
+```
+
+#SVM classifier using Non-Linear Kernel
+
+**Computing SVM using radial basis kernel:**
+
+```{r}
+# Fit the model 
+svm3 <- train(diabetes ~., data = pima.data, method = "svmRadial", trControl = train_control, preProcess = c("center","scale"), tuneLength = 10)
+
+# Print the best tuning parameter sigma and C that maximizes model accuracy
+svm3$bestTune
+
+#View the model
+svm3
+
+#save the results for later
+res3<-as_tibble(svm3$results[which.min(svm3$results[,2]),])
+res3
+```
+
+
+**Computing SVM using polynomial basis kernel:
+
+```{r}
+# Fit the model 
+svm4 <- train(diabetes ~., data = pima.data, method = "svmPoly", trControl = train_control, preProcess = c("center","scale"), tuneLength = 4)
+
+# Print the best tuning parameter sigma and C that maximizes model accuracy
+svm4$bestTune
+
+#View the model
+svm4
+
+#save the results for later
+res4<-as_tibble(svm4$results[which.min(svm4$results[,2]),])
+res4
+
+df<-tibble(Model=c('SVM Linear','SVM Linear w/ choice of cost','SVM Radial','SVM Poly'),Accuracy=c(svm1$results[2][[1]],res2$Accuracy,res3$Accuracy,res4$Accuracy))
+df %>% arrange(Accuracy)
+```
+
+
+## Support Vector Machines (Book Ch. 9 Lab)
+https://rpubs.com/uky994/581508
+
