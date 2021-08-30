@@ -1,0 +1,244 @@
+---
+title: "code2"
+author: "Austin Pesina"
+date: "5/12/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r libraries, include=FALSE}
+library(MASS)
+library(tidyverse)
+library(caret)
+library(usdm)
+library(modelr)
+library(PerformanceAnalytics)
+library(class)
+```
+
+```{r data}
+future <- read_rds("~/Data_Mining/data/future_fundraising.rds")
+fund <- read_rds("~/Data_Mining/data/fundraising.rds")
+
+set.seed(12345)
+
+#vars
+split = 0.80
+trainIndex <- createDataPartition(fund$target,p=split,list=FALSE)
+train <- fund[trainIndex,]
+test <- fund[-trainIndex,]
+train_control <- trainControl(method="repeatedcv",number=10,repeats=3)
+```
+
+
+
+# Develop Model
+
+```{r Develop}
+glm_fit <- glm(target~., data = fund, family = "binomial")
+summary(glm_fit)
+coef(glm_fit)
+summary(glm_fit)$coef
+glm_prob <- predict(glm_fit, type = "response")
+contrasts(fund$target)
+glm_pred <- rep("Donor", 3000)
+glm_pred[glm_prob>0.5] = "No Donor"
+table(glm_pred, fund$target)
+mean(glm_pred==fund$target)
+```
+
+* num_child, income, home_value, months_since_donate have lowest p-values
+* months_since_donate and income have strongest association 
+
+Logistic regression was correct 56.6% of the time on the full data set.
+
+# Logistic Regression
+
+
+```{r}
+glm_fit3 <- glm(target~num_child + income + home_value + months_since_donate, data = train, family ="binomial")
+glm_prob3 <- predict(glm_fit3, type = "response")
+glm_pred3 <- rep("Donor", 2401)
+glm_pred3[glm_prob3 > 0.5] = "No Donor"
+table(glm_pred3, train$target)
+mean(glm_pred3==train$target)
+```
+
+#LR + TL
+
+```{r}
+glm_fit_tl <- glm(target~num_child + income + home_value + months_since_donate + time_lag, data = train, family ="binomial")
+glm_prob_tl <- predict(glm_fit_tl, type = "response")
+glm_pred_tl <- rep("Donor", 2401)
+glm_pred_tl[glm_prob_tl > 0.5] = "No Donor"
+table(glm_pred_tl, train$target)
+mean(glm_pred_tl==train$target)
+```
+
+
+# LDA
+
+
+```{r}
+lda_fit2 <- lda(target~num_child + income + home_value + months_since_donate, data = train)
+lda_fit2
+lda_pred2 <- predict(lda_fit2, train)
+names(lda_pred2)
+lda_class2 <- lda_pred2$class
+table(lda_class2, train$target)
+(660+679)/2401
+```
+
+#LDA + TL
+
+```{r}
+lda_fit_tl <- lda(target~num_child + income + home_value + months_since_donate + time_lag, data = train)
+lda_fit_tl
+lda_pred_tl <- predict(lda_fit_tl, train)
+names(lda_pred_tl)
+lda_class_tl <- lda_pred_tl$class
+table(lda_class_tl, train$target)
+(660+676)/2401
+```
+
+
+# QDA
+
+```{r}
+qda_fit2 <- qda(target~num_child + income + home_value + months_since_donate, data = train)
+qda_class2 <- predict(qda_fit2, train)$class
+table(qda_class2, train$target)
+(853+479)/2401
+```
+
+#QDA + TL
+
+```{r}
+qda_fit_tl <- qda(target~num_child + income + home_value + months_since_donate + time_lag, data = train)
+qda_class_tl <- predict(qda_fit_tl, train)$class
+table(qda_class_tl, train$target)
+(759+558)/2401
+```
+
+# KNN
+
+```{r}
+knn_fit2 <- train(target~num_child + income + home_value + months_since_donate, data = train, method = "knn", trControl = train_control, preProcess = c("center", "scale"), tuneLength = 20)
+knn_fit2
+```
+
+53.3% k = 43
+
+#KNN + TL
+
+```{r}
+knn_fit_tl <- train(target~num_child + income + home_value + months_since_donate +time_lag, data = train, method = "knn", trControl = train_control, preProcess = c("center", "scale"), tuneLength = 20)
+knn_fit_tl
+```
+
+54.1% k = 25
+
+# Random Forest
+
+```{r}
+set.seed(12345)
+rf_fit2 <- train(target~num_child + income + home_value + months_since_donate, data = train, method = "rf", trControl = trainControl("cv", number = 10), importance = T)
+rf_fit2$finalModel
+(609+619)/2401
+```
+
+
+# RF + TL
+
+```{r}
+set.seed(12345)
+rf_fit_tl <- train(target~num_child + income + home_value + months_since_donate + time_lag, data = train, method = "rf", trControl = trainControl("cv", number = 10), importance = T)
+rf_fit_tl$finalModel
+(607+614)/2401
+```
+
+#SVM
+
+* Linear
+
+```{r}
+set.seed(12345)
+svm_fit2 <- train(target~num_child + income + home_value + months_since_donate, data = train, method = "svmLinear", trControl = train_control, preProcess = c("center", "scale"))
+svm_fit2
+res9 <- as_tibble(svm_fit2$results[which.min(svm_fit2$results[,2]),])
+```
+
+* Linear + TL
+
+```{r}
+set.seed(12345)
+svm_fit_tl <- train(target~num_child + income + home_value + months_since_donate + time_lag, data = train, method = "svmLinear", trControl = train_control, preProcess = c("center", "scale"))
+svm_fit_tl
+res99 <- as_tibble(svm_fit_tl$results[which.min(svm_fit_tl$results[,2]),])
+```
+
+* SVM Radial
+
+```{r}
+set.seed(12345)
+svm_rad2 <- train(target~num_child + income + home_value + months_since_donate, data = train, method = "svmRadial", trControl = train_control, preProcess = c("center", "scale"), tunelength = 20)
+svm_rad2$bestTune
+svm_rad2
+res8 <- as_tibble(svm_rad2$results[which.min(svm_rad2$results[,2]),])
+```
+
+
+*SVM Radial + TL
+
+```{r}
+set.seed(12345)
+svm_rad_tl <- train(target~num_child + income + home_value + months_since_donate + time_lag, data = train, method = "svmRadial", trControl = train_control, preProcess = c("center", "scale"), tunelength = 20)
+svm_rad_tl$bestTune
+svm_rad_tl
+res88 <- as_tibble(svm_rad_tl$results[which.min(svm_rad_tl$results[,2]),])
+```
+
+* SVM Polynomial
+
+```{r}
+set.seed(12345)
+svm_poly2 <- train(target~num_child + income + home_value + months_since_donate, data = train, method = "svmPoly", trControl = train_control, preProcess = c("center", "scale"), tuneLength = 5)
+svm_poly2$bestTune
+svm_poly2
+svm_poly2$finalModel
+res7 <- as_tibble(svm_poly2$results[which.min(svm_poly2$results[,2]),])
+```
+
+
+*SVM Poly + TL
+
+```{r}
+set.seed(12345)
+svm_poly_tl <- train(target~num_child + income + home_value + months_since_donate + time_lag, data = train, method = "svmPoly", trControl = train_control, preProcess = c("center", "scale"), tuneLength = 5)
+svm_poly_tl$bestTune
+svm_poly_tl
+svm_poly_tl$finalModel
+res77 <- as_tibble(svm_poly_tl$results[which.min(svm_poly_tl$results[,2]),])
+```
+
+
+
+* SVM Results
+
+```{r}
+df2 <- tibble(Model=c("SVM Linear", "SVM Radial", "SVM Poly"), Accuracy =c(res9$Accuracy, res8$Accuracy, res7$Accuracy))
+
+df2 %>% arrange(Accuracy)
+```
+
+
+*SVM + TL Results
+
+```{r}
+df2 <- tibble(Model=c("SVM Linear", "SVM Radial", "SVM Poly"), Accuracy =c(res99$Accuracy, res88$Accuracy, res77$Accuracy))
+
+df2 %>% arrange(Accuracy)
+```

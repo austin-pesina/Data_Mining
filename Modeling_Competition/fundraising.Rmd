@@ -1,0 +1,204 @@
+---
+title: "Modeling Competition"
+author: "Austin Pesina"
+date: "5/7/2021"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ISLR)
+library(tidyverse)
+library(caret)
+library(usdm)
+library(modelr)
+library(PerformanceAnalytics)
+```
+
+
+# Background:
+
+
+A national veterans’ organization wishes to develop a predictive model to improve the cost-effectiveness of their direct marketing campaign. The organization, with its in-house database of over 13 million donors, is one of the largest direct-mail fundraisers in the United States. According to their recent mailing records, the overall response rate is $5.1\%$. Out of those who responded (donated), the average donation is $\$13.00$. Each mailing, which includes a gift of personalized address labels and assortments of cards and envelopes, costs $\$0.68$ to produce and send. Using these facts, we take a sample of this dataset to develop a classification model that can effectively capture donors so that the expected net profit is maximized. Weighted sampling was used, under-representing the non-responders so that the sample has equal numbers of donors and non-donors.
+
+
+# Business Objectives and Goals:
+
+The goal is to improve the cost-effectiveness of the veterans’ organization direct marketing campaign with data analysis.
+The objective of this effort is to develop a classification model that can effectively capture donors so that the expected net profit is maximized.
+
+
+#  Data Sources and Data used:
+For this project, we were given with a data sample. The dataset was already generated with weighted sampling as the original dataset/population has heavy non-responders. The sample given has almost equal number of donors and non-donors.
+
+```{r libraries and data}
+future <- read_rds("~/Data_Mining/data/future_fundraising.rds")
+fund <- read_rds("~/Data_Mining/data/fundraising.rds")
+
+set.seed(12345)
+
+str(future)
+str(fund)
+
+table(fund$target)
+```
+
+A quick look at our data:  
+n = 3000  
+p = 20  
+y = target  
+
+Note that our target is a factor variable with 2 levels: "Donor" and "No Donor".  
+
+Our sample dataset has 3000 observations ($n = 3000$) and our production dataset has 120 observations. As previously mentioned, a 50-50 weighted sample was used. There are $1499$ "Donors" and $1501$ "No Donors" which is a rate of $49.7\%$ of "Donors".  
+
+Because we are dealing with a classification problem, we use a weighted sample. A simple random sample could potentially be biased towards one group, so we use a weighted sample to make sure we have an apporoximately even distribution.
+
+# Type of Analysis Performed
+
+## Exploratory Data Analysis
+
+Here is how our analysis was performed:
+
+* *Summary* of the sample to understand how the predictors data is distributed, any significant outliers, etc.  
+
+* *Correlation* of the predictors with the response variable and with each other to understand which predictors can heavily influence the model.  
+
+* *Collineraity* of the predictors with each other to understand if any exclusions can be made for the final model.
+
+```{r summary}
+#Summary of the training sample
+
+summary(fund)
+```
+
+
+By looking at the summary, we see that our target is split almost evenly. We also see that `home_value`, `med_fam_inc`, `avg_fam_inc`, `pct_lt15k`, `num_prom`, `lifetime_gifts`, `largest_gift`, `last_gift`, `time_lag`, and `avg_gift` all look to contain outliers.  
+
+Despite being numerical, `num_child`, `income`, and `wealth` all seem to be categorical variables.
+
+```{r correlation}
+# Correlation
+
+data <- (fund[,c(6:7, 9:21)])
+data$target <- as.numeric(data$target)
+
+chart.Correlation(data, histogram=F, pch=19)
+```
+
+From the graphs, we see that few variables have a high correlation and only `num_child`, `income`, `num_prom`, `last_gift`, `months_since_donate`, and `avg_gift` are correlated with the response variable. We also see that `med_fam_inc` and `avg_fam_inc` are highly correlated with `income`.  
+
+```{r collinearity}
+# Check collinearity
+vif(as.data.frame(data))
+```
+
+
+Here we see that `med_fam_inc` and `avg_fam_inc` are collinear. The only other collinear variables are `last_gift` and `avg_gift.`
+
+
+## Exclusions:
+
+No variables were excluded.
+
+## Variable Transformations
+
+As stated earlier, `home_value`, `med_fam_inc`, `avg_farm_inc`, `pct_lt15k`, `num_prom`, `lifetime_gifts`, `largest_gift`, `last_gift`, `time_lag`, and `avg_gift` all have large outliers.
+
+Because we have values of 0, we can take the square root and then apply a log transformation on any non-zero values.
+
+# Methodology, Background, and Benefits
+
+## Partitioning
+
+Two different approaches are used below.
+
+```{r Partition}
+# Create partition
+split = 0.80
+trainIndex <- createDataPartition(fund$target,p=split,list=FALSE)
+train <- fund[trainIndex,]
+test <- fund[-trainIndex,]
+train_control <- trainControl(method="repeatedcv",number=10,repeats=3)
+```
+* Cross Validation
+
+```{r CV}
+train_control <- trainControl(method = "repeatedcv", number = 10, repeats = 3)
+```
+
+# Model Fit Approach:
+
+## Variable Importance:
+
+Logistic regression was used to find the variables with significant p-values, <0.5.
+
+```{r}
+glm_fit <- glm(target~., data = fund, family = "binomial")
+summary(glm_fit)
+coef(glm_fit)
+summary(glm_fit)$coef
+glm_prob <- predict(glm_fit, type = "response")
+contrasts(fund$target)
+glm_pred <- rep("Donor", 3000)
+glm_pred[glm_prob>0.5] = "No Donor"
+table(glm_pred, fund$target)
+mean(glm_pred==fund$target)
+```
+
+## Predictors for the final model:
+
+1. We took the Top 10 predictors based on the random forest importance and left out any collinear predictors.
+  * `last_gift` is collinear with `avg_gift`
+  * `med_fam_inc` and `pct_lt15k` are both collinear with `income`
+2. The predictors we used are:
+    * num_child
+    * income
+    * home_value
+    * months_since_donate
+    * time_lag
+3. time_lag was initially excluded from the model. Upon adding it back in, half the models performed 0.3% better on average.
+    
+## Classification Models
+
+For this analysis, several models were used including Logistic Regression, Linear Discriminant Analysis (LDA), Quadratic Discriminant Analysis (QDA), K-Nearest Neighbor (KNN), Random Forest, and Support Vector Machines (SVM).
+    
+# Model Performance and Validation Results
+
+## The final, best accuracy rate observed  was $56.1\%$ with logistic regression.
+
+LDA (55.64%), SVM Linear (55.38), QDA (54.85), SVM Radial (54.35) were the other best performing models.
+
+## Logistic Regression
+
+```{r}
+glm_fit_tl <- glm(target~num_child + income + home_value + months_since_donate + time_lag, data = train, family ="binomial")
+glm_prob_tl <- predict(glm_fit_tl, type = "response")
+glm_pred_tl <- rep("Donor", 2401)
+glm_pred_tl[glm_prob_tl > 0.5] = "No Donor"
+table(glm_pred_tl, train$target)
+mean(glm_pred_tl==train$target)
+
+future_value <- predict(glm_fit_tl, future)
+Value <- c("value", as.character(future_value))
+Value <- if_else (Value > 0.5, "No Donor", "Donor")
+write.csv(Value,file="~/final_glm.csv", row.names=F)
+```
+
+Prediction accuracy is $56.1\%$.
+
+
+## Support Vector Machines - Linear
+
+```{r}
+set.seed(12345)
+svm_fit2 <- train(target~num_child + income + home_value + months_since_donate, data = train, method = "svmLinear", trControl = train_control, preProcess = c("center", "scale"))
+future_value_svm <- predict(svm_fit2, future)
+Value_svm <- c("value", as.character(future_value_svm))
+write.csv(Value_svm,file="~/final_svm.csv", row.names=F)
+```
+
+The linear SVM had a $55.4\%$ accuracy.
+
